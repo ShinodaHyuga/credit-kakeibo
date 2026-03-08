@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# logs
+*.log
+
+# search
+*.env
+
+# data
+data/
