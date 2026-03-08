@@ -1,18 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { IncomesTab } from "@/components/tabs/IncomesTab";
 import { RulesTab } from "@/components/tabs/RulesTab";
 import { SummaryTab } from "@/components/tabs/SummaryTab";
 import { TransactionsTab } from "@/components/tabs/TransactionsTab";
-import { useIncomesTab } from "@/hooks/useIncomesTab";
 import { useRulesTab } from "@/hooks/useRulesTab";
 import { useSummaryTab } from "@/hooks/useSummaryTab";
 import { useTransactionsTab } from "@/hooks/useTransactionsTab";
 import { api } from "@/lib/api";
 import type { Category } from "@/types/models";
 
-type Tab = "transactions" | "summary" | "rules" | "income";
+type Tab = "transactions" | "summary" | "rules";
 
 function formatMoney(v: number): string {
   return Number(v).toLocaleString("ja-JP");
@@ -37,12 +35,10 @@ export default function Page() {
   const transactionsTab = useTransactionsTab(categories, showNotice, requestRefreshAll);
   const summaryTab = useSummaryTab(showNotice);
   const rulesTab = useRulesTab(categories, showNotice, requestRefreshAll);
-  const incomesTab = useIncomesTab(showNotice, requestRefreshAll);
 
   const { loadTransactions } = transactionsTab;
   const { loadSummary } = summaryTab;
   const { loadRulesTab } = rulesTab;
-  const { loadIncomes } = incomesTab;
 
   const loadCategories = useCallback(async () => {
     const data = await api.categories();
@@ -50,8 +46,8 @@ export default function Page() {
   }, []);
 
   const refreshAll = useCallback(async () => {
-    await Promise.all([loadTransactions(), loadSummary(), loadRulesTab(), loadIncomes()]);
-  }, [loadTransactions, loadSummary, loadRulesTab, loadIncomes]);
+    await Promise.all([loadTransactions(), loadSummary(), loadRulesTab()]);
+  }, [loadTransactions, loadSummary, loadRulesTab]);
 
   useEffect(() => {
     refreshAllRef.current = refreshAll;
@@ -111,10 +107,6 @@ export default function Page() {
         <button className={`tab ${activeTab === "rules" ? "active" : ""}`} onClick={() => setActiveTab("rules")}>
           カテゴリ管理
         </button>
-        <button className={`tab ${activeTab === "income" ? "active" : ""}`} onClick={() => setActiveTab("income")}>
-          収入
-        </button>
-
       </nav>
 
       <main>
@@ -187,38 +179,6 @@ export default function Page() {
             onCreateRuleFromUncategorized={rulesTab.onCreateRuleFromUncategorized}
           />
         )}
-        {activeTab === "income" && (
-          <IncomesTab
-            incomes={incomesTab.incomes}
-            sortedIncomes={incomesTab.sortedIncomes}
-            incomeDrafts={incomesTab.incomeDrafts}
-            incomeFilterName={incomesTab.incomeFilterName}
-            incomeFilterActive={incomesTab.incomeFilterActive}
-            incomeTotal={incomesTab.incomeTotal}
-            newIncomeName={incomesTab.newIncomeName}
-            newIncomeYearMonth={incomesTab.newIncomeYearMonth}
-            newIncomeAmount={incomesTab.newIncomeAmount}
-            newIncomeActive={incomesTab.newIncomeActive}
-            newIncomeNote={incomesTab.newIncomeNote}
-            incomeSortMark={incomesTab.incomeSortMark}
-            onToggleIncomeSort={incomesTab.onToggleIncomeSort}
-            onChangeIncomeFilterName={incomesTab.onChangeIncomeFilterName}
-            onChangeIncomeFilterActive={incomesTab.onChangeIncomeFilterActive}
-            onSearch={incomesTab.onSearch}
-            onClear={incomesTab.onClear}
-            onChangeIncomeDraft={incomesTab.onChangeIncomeDraft}
-            onSave={incomesTab.onSave}
-            onDelete={incomesTab.onDelete}
-            onChangeNewIncomeName={incomesTab.onChangeNewIncomeName}
-            onChangeNewIncomeYearMonth={incomesTab.onChangeNewIncomeYearMonth}
-            onChangeNewIncomeAmount={incomesTab.onChangeNewIncomeAmount}
-            onChangeNewIncomeActive={incomesTab.onChangeNewIncomeActive}
-            onChangeNewIncomeNote={incomesTab.onChangeNewIncomeNote}
-            onCreate={incomesTab.onCreate}
-            formatMoney={formatMoney}
-          />
-        )}
-
       </main>
 
       {notice ? <div className={`notice ${notice.error ? "error" : ""}`}>{notice.message}</div> : null}
