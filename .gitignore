@@ -25,3 +25,6 @@ backend/app.db-wal
 # Project-local generated content
 data/
 ai/
+
+# Local IDE / build artifacts
+.cache/
