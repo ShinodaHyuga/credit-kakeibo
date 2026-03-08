@@ -12,6 +12,8 @@ import type {
 } from "@/types/models";
 
 type Tab = "transactions" | "summary" | "rules" | "fixed";
+type TransactionSortKey = "useDate" | "storeName" | "category" | "amount" | "appliedRuleId";
+type SortDirection = "asc" | "desc";
 
 type RuleDraft = {
   matchText: string;
@@ -51,6 +53,10 @@ export default function Page() {
   const [txStore, setTxStore] = useState("");
   const [txAll, setTxAll] = useState(false);
   const [txUncategorized, setTxUncategorized] = useState(false);
+  const [txSort, setTxSort] = useState<{ key: TransactionSortKey; direction: SortDirection }>({
+    key: "useDate",
+    direction: "desc",
+  });
 
   const [sumMonths, setSumMonths] = useState("");
 
@@ -221,6 +227,48 @@ export default function Page() {
 
   const categoryNames = useMemo(() => categories.map((c) => c.name), [categories]);
   const fixedTotal = useMemo(() => fixedExpenses.reduce((sum, row) => sum + row.amount, 0), [fixedExpenses]);
+  const sortedTransactions = useMemo(() => {
+    const list = [...transactions];
+    list.sort((a, b) => {
+      let result = 0;
+      switch (txSort.key) {
+        case "useDate":
+          result = a.useDate.localeCompare(b.useDate);
+          break;
+        case "storeName":
+          result = a.storeName.localeCompare(b.storeName, "ja");
+          break;
+        case "category":
+          result = a.category.localeCompare(b.category, "ja");
+          break;
+        case "amount":
+          result = a.amount - b.amount;
+          break;
+        case "appliedRuleId":
+          result = (a.appliedRuleId ?? -1) - (b.appliedRuleId ?? -1);
+          break;
+      }
+      return txSort.direction === "asc" ? result : -result;
+    });
+    return list;
+  }, [transactions, txSort]);
+
+  const toggleTxSort = useCallback((key: TransactionSortKey) => {
+    setTxSort((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: "asc" };
+    });
+  }, []);
+
+  const sortMark = useCallback(
+    (key: TransactionSortKey) => {
+      if (txSort.key !== key) return "";
+      return txSort.direction === "asc" ? " ▲" : " ▼";
+    },
+    [txSort],
+  );
 
   return (
     <div className="app">
@@ -285,16 +333,26 @@ export default function Page() {
           <table>
             <thead>
               <tr>
-                <th>利用日</th>
-                <th>利用店名</th>
-                <th>カテゴリ</th>
-                <th>利用金額</th>
-                <th>適用ルールID</th>
+                <th className="sortable" onClick={() => toggleTxSort("useDate")}>
+                  利用日{sortMark("useDate")}
+                </th>
+                <th className="sortable" onClick={() => toggleTxSort("storeName")}>
+                  利用店名{sortMark("storeName")}
+                </th>
+                <th className="sortable" onClick={() => toggleTxSort("category")}>
+                  カテゴリ{sortMark("category")}
+                </th>
+                <th className="sortable" onClick={() => toggleTxSort("amount")}>
+                  利用金額{sortMark("amount")}
+                </th>
+                <th className="sortable" onClick={() => toggleTxSort("appliedRuleId")}>
+                  適用ルールID{sortMark("appliedRuleId")}
+                </th>
                 <th>クイックルール作成</th>
               </tr>
             </thead>
             <tbody>
-              {transactions.map((tx) => (
+              {sortedTransactions.map((tx) => (
                 <tr key={tx.id}>
                   <td>{tx.useDate}</td>
                   <td>{tx.storeName}</td>
