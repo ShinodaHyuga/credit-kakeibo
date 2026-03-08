@@ -177,6 +177,15 @@ th {
   background: #f7faf6;
 }
 
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+th.sortable:hover {
+  background: #eef5ed;
+}
+
 .summary-table th,
 .summary-table td {
   overflow: hidden;
