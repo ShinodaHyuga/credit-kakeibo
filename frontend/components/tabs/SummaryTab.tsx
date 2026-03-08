@@ -131,6 +131,13 @@ export function SummaryTab(props: Props) {
             <div className="chart-canvas">
               <ResponsiveContainer width="100%" height={300}>
                 <ComposedChart data={monthlyTrendData}>
+                  <defs>
+                    <linearGradient id="incomeGoldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#f59e0b" />
+                      <stop offset="45%" stopColor="#facc15" />
+                      <stop offset="100%" stopColor="#fde047" />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#eadfce" />
                   <XAxis dataKey="yearMonth" />
                   <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
@@ -146,11 +153,13 @@ export function SummaryTab(props: Props) {
                     />
                   ))}
                   <Line
+                    className="income-line"
                     type="monotone"
                     dataKey="income"
-                    stroke="#ff7f11"
-                    strokeWidth={2.5}
+                    stroke="url(#incomeGoldGradient)"
+                    strokeWidth={3}
                     dot={false}
+                    activeDot={{ r: 5, fill: "#fff9db", stroke: "#facc15", strokeWidth: 2 }}
                     name="収入"
                   />
                 </ComposedChart>
@@ -164,7 +173,7 @@ export function SummaryTab(props: Props) {
                 </span>
               ))}
               <span className="legend-item">
-                <i style={{ backgroundColor: "#ff7f11" }} />
+                <i style={{ background: "linear-gradient(90deg, #f59e0b, #fde047)" }} />
                 収入
               </span>
             </div>
