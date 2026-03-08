@@ -77,7 +77,10 @@ export default function Page() {
     void reloadImport();
   }, [categories, initialized, reloadImport]);
 
-  const categoryNames = useMemo(() => categories.map((c) => c.name), [categories]);
+  const categoryNames = useMemo(
+    () => categories.map((c) => c.name).filter((name) => name !== "未分類" && name !== "振込"),
+    [categories],
+  );
 
   return (
     <div className="app">

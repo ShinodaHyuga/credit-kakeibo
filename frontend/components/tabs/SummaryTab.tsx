@@ -32,6 +32,8 @@ export function SummaryTab(props: Props) {
             <col key={`col-${name}`} className="col-category" />
           ))}
           <col className="col-total" />
+          <col className="col-total" />
+          <col className="col-total" />
         </colgroup>
         <thead>
           <tr>
@@ -39,21 +41,30 @@ export function SummaryTab(props: Props) {
             {props.categoryNames.map((name) => (
               <th key={name}>{name}</th>
             ))}
-            <th>合計</th>
+            <th>支出</th>
+            <th>収入</th>
+            <th>収支</th>
           </tr>
         </thead>
         <tbody>
-          {props.summaries.map((row) => (
-            <tr key={row.yearMonth}>
-              <td>{row.yearMonth}</td>
-              {props.categoryNames.map((name) => (
-                <td key={`${row.yearMonth}-${name}`} className="num">
-                  {props.formatMoney(row.categories[name] ?? 0)}
-                </td>
-              ))}
-              <td className="num">{props.formatMoney(row.total)}</td>
-            </tr>
-          ))}
+          {props.summaries.map((row) => {
+            const expense = props.categoryNames.reduce((sum, name) => sum + (row.categories[name] ?? 0), 0);
+            const income = row.categories["振込"] ?? 0;
+            const balance = income - expense;
+            return (
+              <tr key={row.yearMonth}>
+                <td>{row.yearMonth}</td>
+                {props.categoryNames.map((name) => (
+                  <td key={`${row.yearMonth}-${name}`} className="num">
+                    {props.formatMoney(row.categories[name] ?? 0)}
+                  </td>
+                ))}
+                <td className="num">{props.formatMoney(expense)}</td>
+                <td className="num">{props.formatMoney(income)}</td>
+                <td className="num">{props.formatMoney(balance)}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </section>
