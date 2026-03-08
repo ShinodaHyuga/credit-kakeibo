@@ -17,7 +17,7 @@ function formatMoney(v: number): string {
 }
 
 export default function Page() {
-  const [activeTab, setActiveTab] = useState<Tab>("transactions");
+  const [activeTab, setActiveTab] = useState<Tab>("summary");
   const [categories, setCategories] = useState<Category[]>([]);
   const [initialized, setInitialized] = useState(false);
   const [importResult, setImportResult] = useState("");
@@ -99,11 +99,11 @@ export default function Page() {
       </header>
 
       <nav className="tabs">
-        <button className={`tab ${activeTab === "transactions" ? "active" : ""}`} onClick={() => setActiveTab("transactions")}>
-          明細一覧
-        </button>
         <button className={`tab ${activeTab === "summary" ? "active" : ""}`} onClick={() => setActiveTab("summary")}>
           収支
+        </button>
+        <button className={`tab ${activeTab === "transactions" ? "active" : ""}`} onClick={() => setActiveTab("transactions")}>
+          明細明細
         </button>
         <button className={`tab ${activeTab === "rules" ? "active" : ""}`} onClick={() => setActiveTab("rules")}>
           カテゴリ管理
