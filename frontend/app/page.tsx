@@ -103,7 +103,7 @@ export default function Page() {
           収支
         </button>
         <button className={`tab ${activeTab === "transactions" ? "active" : ""}`} onClick={() => setActiveTab("transactions")}>
-          明細明細
+          明細一覧
         </button>
         <button className={`tab ${activeTab === "rules" ? "active" : ""}`} onClick={() => setActiveTab("rules")}>
           カテゴリ管理
