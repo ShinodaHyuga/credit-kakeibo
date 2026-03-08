@@ -48,12 +48,3 @@ export type FixedExpense = {
   isActive: boolean;
   note: string;
 };
-
-export type Income = {
-  id: number;
-  name: string;
-  yearMonth: string;
-  amount: number;
-  isActive: boolean;
-  note: string;
-};
