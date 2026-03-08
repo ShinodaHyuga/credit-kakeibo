@@ -16,7 +16,8 @@ import (
 	"golang.org/x/text/transform"
 )
 
-var filePattern = regexp.MustCompile(`^\d{6}\.csv$`)
+var filePattern = regexp.MustCompile(`^(\d{6}|meisai)\.csv$`)
+var meisaiDebitPattern = regexp.MustCompile(`^V\d{6}`)
 
 type Record struct {
 	UseDate   string
@@ -55,6 +56,7 @@ func ParseFile(path string) ([]Record, error) {
 	reader.FieldsPerRecord = -1
 
 	line := 0
+	isMeisaiFormat := false
 	records := make([]Record, 0, 128)
 	for {
 		row, err := reader.Read()
@@ -66,6 +68,7 @@ func ParseFile(path string) ([]Record, error) {
 		}
 		line++
 		if line == 1 {
+			isMeisaiFormat = isMeisaiHeader(row)
 			continue
 		}
 		if isBlankRow(row) {
@@ -74,13 +77,17 @@ func ParseFile(path string) ([]Record, error) {
 		if isTrailingSummaryRow(row) {
 			continue
 		}
-		rec := parseRow(row)
+		if isMeisaiFormat && !hasWithdrawalAmount(row) {
+			// Skip deposit-only rows in bank statement format.
+			continue
+		}
+		rec := parseRow(row, isMeisaiFormat)
 		records = append(records, rec)
 	}
 	return records, nil
 }
 
-func parseRow(row []string) Record {
+func parseRow(row []string, isMeisaiFormat bool) Record {
 	useDate := "null"
 	yearMonth := "null"
 	storeName := "null"
@@ -89,13 +96,25 @@ func parseRow(row []string) Record {
 	if len(row) > 0 {
 		useDate, yearMonth = normalizeDate(row[0])
 	}
-	if len(row) > 1 && strings.TrimSpace(row[1]) != "" {
-		storeName = strings.TrimSpace(row[1])
-	}
-	if len(row) > 2 {
-		a := strings.ReplaceAll(strings.TrimSpace(row[2]), ",", "")
-		if parsed, err := strconv.ParseInt(a, 10, 64); err == nil {
-			amount = parsed
+	if isMeisaiFormat {
+		if len(row) > 3 && strings.TrimSpace(row[3]) != "" {
+			storeName = normalizeMeisaiStoreName(row[3])
+		}
+		if len(row) > 1 {
+			a := strings.ReplaceAll(strings.TrimSpace(row[1]), ",", "")
+			if parsed, err := strconv.ParseInt(a, 10, 64); err == nil {
+				amount = parsed
+			}
+		}
+	} else {
+		if len(row) > 1 && strings.TrimSpace(row[1]) != "" {
+			storeName = strings.TrimSpace(row[1])
+		}
+		if len(row) > 2 {
+			a := strings.ReplaceAll(strings.TrimSpace(row[2]), ",", "")
+			if parsed, err := strconv.ParseInt(a, 10, 64); err == nil {
+				amount = parsed
+			}
 		}
 	}
 
@@ -107,6 +126,35 @@ func parseRow(row []string) Record {
 		StoreName: storeName,
 		Amount:    amount,
 		RowHash:   hex.EncodeToString(h[:]),
+	}
+}
+
+func isMeisaiHeader(row []string) bool {
+	if len(row) < 4 {
+		return false
+	}
+	return strings.TrimSpace(row[3]) == "お取り扱い内容"
+}
+
+func hasWithdrawalAmount(row []string) bool {
+	if len(row) < 2 {
+		return false
+	}
+	a := strings.ReplaceAll(strings.TrimSpace(row[1]), ",", "")
+	return a != ""
+}
+
+func normalizeMeisaiStoreName(raw string) string {
+	s := strings.TrimSpace(raw)
+	switch {
+	case meisaiDebitPattern.MatchString(s):
+		return "デビット"
+	case strings.Contains(s, "PAYPAYｶ-ﾄﾞ"):
+		return "paypayカードの支払い"
+	case strings.Contains(s, "パソコン振込 ｶ)ｼﾃｲ-ﾌﾟﾗﾝﾆﾝｸﾞ"):
+		return "家賃"
+	default:
+		return s
 	}
 }
 
