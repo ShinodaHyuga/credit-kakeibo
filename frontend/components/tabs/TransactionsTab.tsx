@@ -50,52 +50,54 @@ export function TransactionsTab(props: Props) {
         </button>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th className="sortable" onClick={() => props.onToggleSort("useDate")}>
-              利用日{props.sortMark("useDate")}
-            </th>
-            <th className="sortable" onClick={() => props.onToggleSort("storeName")}>
-              利用店名{props.sortMark("storeName")}
-            </th>
-            <th className="sortable" onClick={() => props.onToggleSort("category")}>
-              カテゴリ{props.sortMark("category")}
-            </th>
-            <th className="sortable" onClick={() => props.onToggleSort("amount")}>
-              利用金額{props.sortMark("amount")}
-            </th>
-            <th className="sortable" onClick={() => props.onToggleSort("appliedRuleId")}>
-              適用ルールID{props.sortMark("appliedRuleId")}
-            </th>
-            <th>クイックルール作成</th>
-          </tr>
-        </thead>
-        <tbody>
-          {props.sortedTransactions.map((tx) => (
-            <tr key={tx.id}>
-              <td>{tx.useDate}</td>
-              <td>{tx.storeName}</td>
-              <td className={tx.category === "未分類" ? "uncategorized" : ""}>{tx.category}</td>
-              <td className="num">{props.formatMoney(tx.amount)}</td>
-              <td>{tx.appliedRuleId ?? "-"}</td>
-              <td>
-                <select
-                  value={props.txQuickCategory[tx.id] ?? 0}
-                  onChange={(e) => props.onChangeQuickCategory(tx.id, Number(e.target.value))}
-                >
-                  {props.categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                <button onClick={() => props.onCreateRule(tx)}>作成</button>
-              </td>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th className="sortable" onClick={() => props.onToggleSort("useDate")}>
+                利用日{props.sortMark("useDate")}
+              </th>
+              <th className="sortable" onClick={() => props.onToggleSort("storeName")}>
+                利用店名{props.sortMark("storeName")}
+              </th>
+              <th className="sortable" onClick={() => props.onToggleSort("category")}>
+                カテゴリ{props.sortMark("category")}
+              </th>
+              <th className="sortable" onClick={() => props.onToggleSort("amount")}>
+                利用金額{props.sortMark("amount")}
+              </th>
+              <th className="sortable" onClick={() => props.onToggleSort("appliedRuleId")}>
+                適用ルールID{props.sortMark("appliedRuleId")}
+              </th>
+              <th>クイックルール作成</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {props.sortedTransactions.map((tx) => (
+              <tr key={tx.id}>
+                <td>{tx.useDate}</td>
+                <td>{tx.storeName}</td>
+                <td className={tx.category === "未分類" ? "uncategorized" : ""}>{tx.category}</td>
+                <td className="num">{props.formatMoney(tx.amount)}</td>
+                <td>{tx.appliedRuleId ?? "-"}</td>
+                <td>
+                  <select
+                    value={props.txQuickCategory[tx.id] ?? 0}
+                    onChange={(e) => props.onChangeQuickCategory(tx.id, Number(e.target.value))}
+                  >
+                    {props.categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button onClick={() => props.onCreateRule(tx)}>作成</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

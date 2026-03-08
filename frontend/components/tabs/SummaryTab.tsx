@@ -25,48 +25,50 @@ export function SummaryTab(props: Props) {
         </button>
       </div>
 
-      <table className="summary-table">
-        <colgroup>
-          <col className="col-month" />
-          {props.categoryNames.map((name) => (
-            <col key={`col-${name}`} className="col-category" />
-          ))}
-          <col className="col-total" />
-          <col className="col-total" />
-          <col className="col-total" />
-        </colgroup>
-        <thead>
-          <tr>
-            <th>利用年月</th>
+      <div className="table-wrap">
+        <table className="summary-table">
+          <colgroup>
+            <col className="col-month" />
             {props.categoryNames.map((name) => (
-              <th key={name}>{name}</th>
+              <col key={`col-${name}`} className="col-category" />
             ))}
-            <th>支出</th>
-            <th>収入</th>
-            <th>収支</th>
-          </tr>
-        </thead>
-        <tbody>
-          {props.summaries.map((row) => {
-            const expense = props.categoryNames.reduce((sum, name) => sum + (row.categories[name] ?? 0), 0);
-            const income = row.categories["振込"] ?? 0;
-            const balance = income - expense;
-            return (
-              <tr key={row.yearMonth}>
-                <td>{row.yearMonth}</td>
-                {props.categoryNames.map((name) => (
-                  <td key={`${row.yearMonth}-${name}`} className="num">
-                    {props.formatMoney(row.categories[name] ?? 0)}
-                  </td>
-                ))}
-                <td className="num">{props.formatMoney(expense)}</td>
-                <td className="num">{props.formatMoney(income)}</td>
-                <td className="num">{props.formatMoney(balance)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            <col className="col-total" />
+            <col className="col-total" />
+            <col className="col-total" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>利用年月</th>
+              {props.categoryNames.map((name) => (
+                <th key={name}>{name}</th>
+              ))}
+              <th>支出</th>
+              <th>収入</th>
+              <th>収支</th>
+            </tr>
+          </thead>
+          <tbody>
+            {props.summaries.map((row) => {
+              const expense = props.categoryNames.reduce((sum, name) => sum + (row.categories[name] ?? 0), 0);
+              const income = row.categories["振込"] ?? 0;
+              const balance = income - expense;
+              return (
+                <tr key={row.yearMonth}>
+                  <td>{row.yearMonth}</td>
+                  {props.categoryNames.map((name) => (
+                    <td key={`${row.yearMonth}-${name}`} className="num">
+                      {props.formatMoney(row.categories[name] ?? 0)}
+                    </td>
+                  ))}
+                  <td className="num">{props.formatMoney(expense)}</td>
+                  <td className="num">{props.formatMoney(income)}</td>
+                  <td className="num">{props.formatMoney(balance)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

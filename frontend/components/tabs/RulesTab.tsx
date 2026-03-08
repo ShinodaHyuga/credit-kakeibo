@@ -57,60 +57,64 @@ export function RulesTab(props: Props) {
         </button>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th className="sortable" onClick={() => props.onToggleRuleSort("id")}>
-              ID{props.ruleSortMark("id")}
-            </th>
-            <th className="sortable" onClick={() => props.onToggleRuleSort("matchText")}>
-              matchText{props.ruleSortMark("matchText")}
-            </th>
-            <th className="sortable" onClick={() => props.onToggleRuleSort("category")}>
-              カテゴリ{props.ruleSortMark("category")}
-            </th>
-            <th>集計</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          {props.sortedRules.map((rule) => {
-            const draft = props.ruleDrafts[rule.id];
-            if (!draft) return null;
-            return (
-              <tr key={rule.id}>
-                <td>{rule.id}</td>
-                <td>
-                  <input value={draft.matchText} onChange={(e) => props.onChangeRuleDraft(rule.id, { matchText: e.target.value })} />
-                </td>
-                <td>
-                  <select
-                    value={draft.categoryId}
-                    onChange={(e) => props.onChangeRuleDraft(rule.id, { categoryId: Number(e.target.value) })}
-                  >
-                    {props.categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={draft.isActive}
-                    onChange={(e) => props.onChangeRuleDraft(rule.id, { isActive: e.target.checked })}
-                  />
-                </td>
-                <td>
-                  <button onClick={() => props.onSaveRule(rule.id)}>保存</button>
-                  <button onClick={() => props.onDeleteRule(rule.id)}>削除</button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th className="sortable" onClick={() => props.onToggleRuleSort("id")}>
+                ID{props.ruleSortMark("id")}
+              </th>
+              <th className="sortable" onClick={() => props.onToggleRuleSort("matchText")}>
+                matchText{props.ruleSortMark("matchText")}
+              </th>
+              <th className="sortable" onClick={() => props.onToggleRuleSort("category")}>
+                カテゴリ{props.ruleSortMark("category")}
+              </th>
+              <th>集計</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {props.sortedRules.map((rule) => {
+              const draft = props.ruleDrafts[rule.id];
+              if (!draft) return null;
+              return (
+                <tr key={rule.id}>
+                  <td>{rule.id}</td>
+                  <td>
+                    <input value={draft.matchText} onChange={(e) => props.onChangeRuleDraft(rule.id, { matchText: e.target.value })} />
+                  </td>
+                  <td>
+                    <select
+                      value={draft.categoryId}
+                      onChange={(e) => props.onChangeRuleDraft(rule.id, { categoryId: Number(e.target.value) })}
+                    >
+                      {props.categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={draft.isActive}
+                      onChange={(e) => props.onChangeRuleDraft(rule.id, { isActive: e.target.checked })}
+                    />
+                  </td>
+                  <td>
+                    <button onClick={() => props.onSaveRule(rule.id)}>保存</button>
+                    <button className="danger-button" onClick={() => props.onDeleteRule(rule.id)}>
+                      削除
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       <div className="section-head">
         <h3>新規ルール追加</h3>
@@ -142,34 +146,36 @@ export function RulesTab(props: Props) {
         </button>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>店舗名</th>
-            <th>クイック追加</th>
-          </tr>
-        </thead>
-        <tbody>
-          {props.uncategorizedStores.map((store) => (
-            <tr key={store.storeName}>
-              <td className="uncategorized">{store.storeName}</td>
-              <td>
-                <select
-                  value={props.uncQuickCategory[store.storeName] ?? props.categories[0]?.id ?? 0}
-                  onChange={(e) => props.onChangeUncQuickCategory(store.storeName, Number(e.target.value))}
-                >
-                  {props.categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                <button onClick={() => props.onCreateRuleFromUncategorized(store.storeName)}>追加</button>
-              </td>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>店舗名</th>
+              <th>クイック追加</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {props.uncategorizedStores.map((store) => (
+              <tr key={store.storeName}>
+                <td className="uncategorized">{store.storeName}</td>
+                <td>
+                  <select
+                    value={props.uncQuickCategory[store.storeName] ?? props.categories[0]?.id ?? 0}
+                    onChange={(e) => props.onChangeUncQuickCategory(store.storeName, Number(e.target.value))}
+                  >
+                    {props.categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button onClick={() => props.onCreateRuleFromUncategorized(store.storeName)}>追加</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
