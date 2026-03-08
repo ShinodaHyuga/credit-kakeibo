@@ -77,8 +77,8 @@ func ParseFile(path string) ([]Record, error) {
 		if isTrailingSummaryRow(row) {
 			continue
 		}
-		if isMeisaiFormat && !hasWithdrawalAmount(row) {
-			// Skip deposit-only rows in bank statement format.
+		if isMeisaiFormat && !hasNonZeroMeisaiAmount(row) {
+			// Skip rows with neither withdrawal nor deposit amount, or both zero.
 			continue
 		}
 		rec := parseRow(row, isMeisaiFormat)
@@ -100,12 +100,7 @@ func parseRow(row []string, isMeisaiFormat bool) Record {
 		if len(row) > 3 && strings.TrimSpace(row[3]) != "" {
 			storeName = normalizeMeisaiStoreName(row[3])
 		}
-		if len(row) > 1 {
-			a := strings.ReplaceAll(strings.TrimSpace(row[1]), ",", "")
-			if parsed, err := strconv.ParseInt(a, 10, 64); err == nil {
-				amount = parsed
-			}
-		}
+		amount = parseMeisaiAmount(row)
 	} else {
 		if len(row) > 1 && strings.TrimSpace(row[1]) != "" {
 			storeName = strings.TrimSpace(row[1])
@@ -136,12 +131,46 @@ func isMeisaiHeader(row []string) bool {
 	return strings.TrimSpace(row[3]) == "お取り扱い内容"
 }
 
-func hasWithdrawalAmount(row []string) bool {
-	if len(row) < 2 {
+func hasNonZeroMeisaiAmount(row []string) bool {
+	if len(row) < 3 {
 		return false
 	}
-	a := strings.ReplaceAll(strings.TrimSpace(row[1]), ",", "")
-	return a != ""
+	withdrawal := strings.ReplaceAll(strings.TrimSpace(row[1]), ",", "")
+	if v, ok := parseAmount(withdrawal); ok && v != 0 {
+		return true
+	}
+	deposit := strings.ReplaceAll(strings.TrimSpace(row[2]), ",", "")
+	if v, ok := parseAmount(deposit); ok && v != 0 {
+		return true
+	}
+	return false
+}
+
+func parseMeisaiAmount(row []string) int64 {
+	if len(row) > 1 {
+		a := strings.ReplaceAll(strings.TrimSpace(row[1]), ",", "")
+		if parsed, ok := parseAmount(a); ok {
+			return parsed
+		}
+	}
+	if len(row) > 2 {
+		a := strings.ReplaceAll(strings.TrimSpace(row[2]), ",", "")
+		if parsed, ok := parseAmount(a); ok {
+			return parsed
+		}
+	}
+	return 0
+}
+
+func parseAmount(s string) (int64, bool) {
+	if s == "" {
+		return 0, false
+	}
+	parsed, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return parsed, true
 }
 
 func normalizeMeisaiStoreName(raw string) string {
