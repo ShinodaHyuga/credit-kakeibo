@@ -2,17 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FixedExpensesTab } from "@/components/tabs/FixedExpensesTab";
+import { IncomesTab } from "@/components/tabs/IncomesTab";
 import { RulesTab } from "@/components/tabs/RulesTab";
 import { SummaryTab } from "@/components/tabs/SummaryTab";
 import { TransactionsTab } from "@/components/tabs/TransactionsTab";
 import { useFixedExpensesTab } from "@/hooks/useFixedExpensesTab";
+import { useIncomesTab } from "@/hooks/useIncomesTab";
 import { useRulesTab } from "@/hooks/useRulesTab";
 import { useSummaryTab } from "@/hooks/useSummaryTab";
 import { useTransactionsTab } from "@/hooks/useTransactionsTab";
 import { api } from "@/lib/api";
 import type { Category } from "@/types/models";
 
-type Tab = "transactions" | "summary" | "rules" | "fixed";
+type Tab = "transactions" | "summary" | "rules" | "fixed" | "income";
 
 function formatMoney(v: number): string {
   return Number(v).toLocaleString("ja-JP");
@@ -38,11 +40,13 @@ export default function Page() {
   const summaryTab = useSummaryTab(showNotice);
   const rulesTab = useRulesTab(categories, showNotice, requestRefreshAll);
   const fixedTab = useFixedExpensesTab(categories, showNotice, requestRefreshAll);
+  const incomesTab = useIncomesTab(showNotice, requestRefreshAll);
 
   const { loadTransactions } = transactionsTab;
   const { loadSummary } = summaryTab;
   const { loadRulesTab } = rulesTab;
   const { loadFixedExpenses } = fixedTab;
+  const { loadIncomes } = incomesTab;
 
   const loadCategories = useCallback(async () => {
     const data = await api.categories();
@@ -50,8 +54,8 @@ export default function Page() {
   }, []);
 
   const refreshAll = useCallback(async () => {
-    await Promise.all([loadTransactions(), loadSummary(), loadRulesTab(), loadFixedExpenses()]);
-  }, [loadTransactions, loadSummary, loadRulesTab, loadFixedExpenses]);
+    await Promise.all([loadTransactions(), loadSummary(), loadRulesTab(), loadFixedExpenses(), loadIncomes()]);
+  }, [loadTransactions, loadSummary, loadRulesTab, loadFixedExpenses, loadIncomes]);
 
   useEffect(() => {
     refreshAllRef.current = refreshAll;
@@ -110,6 +114,9 @@ export default function Page() {
         </button>
         <button className={`tab ${activeTab === "fixed" ? "active" : ""}`} onClick={() => setActiveTab("fixed")}>
           固定支出
+        </button>
+        <button className={`tab ${activeTab === "income" ? "active" : ""}`} onClick={() => setActiveTab("income")}>
+          収入
         </button>
       </nav>
 
@@ -216,6 +223,38 @@ export default function Page() {
             onChangeNewFixedActive={fixedTab.onChangeNewFixedActive}
             onChangeNewFixedNote={fixedTab.onChangeNewFixedNote}
             onCreate={fixedTab.onCreate}
+            formatMoney={formatMoney}
+          />
+        )}
+
+        {activeTab === "income" && (
+          <IncomesTab
+            incomes={incomesTab.incomes}
+            sortedIncomes={incomesTab.sortedIncomes}
+            incomeDrafts={incomesTab.incomeDrafts}
+            incomeFilterName={incomesTab.incomeFilterName}
+            incomeFilterActive={incomesTab.incomeFilterActive}
+            incomeTotal={incomesTab.incomeTotal}
+            newIncomeName={incomesTab.newIncomeName}
+            newIncomeYearMonth={incomesTab.newIncomeYearMonth}
+            newIncomeAmount={incomesTab.newIncomeAmount}
+            newIncomeActive={incomesTab.newIncomeActive}
+            newIncomeNote={incomesTab.newIncomeNote}
+            incomeSortMark={incomesTab.incomeSortMark}
+            onToggleIncomeSort={incomesTab.onToggleIncomeSort}
+            onChangeIncomeFilterName={incomesTab.onChangeIncomeFilterName}
+            onChangeIncomeFilterActive={incomesTab.onChangeIncomeFilterActive}
+            onSearch={incomesTab.onSearch}
+            onClear={incomesTab.onClear}
+            onChangeIncomeDraft={incomesTab.onChangeIncomeDraft}
+            onSave={incomesTab.onSave}
+            onDelete={incomesTab.onDelete}
+            onChangeNewIncomeName={incomesTab.onChangeNewIncomeName}
+            onChangeNewIncomeYearMonth={incomesTab.onChangeNewIncomeYearMonth}
+            onChangeNewIncomeAmount={incomesTab.onChangeNewIncomeAmount}
+            onChangeNewIncomeActive={incomesTab.onChangeNewIncomeActive}
+            onChangeNewIncomeNote={incomesTab.onChangeNewIncomeNote}
+            onCreate={incomesTab.onCreate}
             formatMoney={formatMoney}
           />
         )}
