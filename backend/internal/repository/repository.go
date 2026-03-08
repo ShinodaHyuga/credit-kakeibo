@@ -456,6 +456,104 @@ func (r *Repo) DeleteFixedExpense(ctx context.Context, id int64) error {
 	return nil
 }
 
+type IncomeFilter struct {
+	Active *bool
+	Name   string
+}
+
+func (r *Repo) Incomes(ctx context.Context, f IncomeFilter) ([]domain.Income, error) {
+	q := `
+SELECT i.id, i.name, i.year_month, i.amount, i.is_active, i.note
+FROM incomes i
+WHERE 1=1`
+	args := make([]any, 0, 2)
+
+	if f.Active != nil {
+		q += " AND i.is_active = ?"
+		if *f.Active {
+			args = append(args, 1)
+		} else {
+			args = append(args, 0)
+		}
+	}
+	if f.Name != "" {
+		q += " AND i.name LIKE ?"
+		args = append(args, "%"+f.Name+"%")
+	}
+	q += " ORDER BY i.name ASC, i.id ASC"
+
+	rows, err := r.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	list := make([]domain.Income, 0, 64)
+	for rows.Next() {
+		var item domain.Income
+		var active int
+		if err := rows.Scan(&item.ID, &item.Name, &item.YearMonth, &item.Amount, &active, &item.Note); err != nil {
+			return nil, err
+		}
+		item.IsActive = active == 1
+		list = append(list, item)
+	}
+	return list, rows.Err()
+}
+
+func (r *Repo) CreateIncome(ctx context.Context, name, yearMonth string, amount int64, isActive bool, note string) error {
+	active := 0
+	if isActive {
+		active = 1
+	}
+	now := time.Now().Format(time.RFC3339)
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO incomes(name, year_month, amount, is_active, note, created_at, updated_at)
+		 VALUES(?, ?, ?, ?, ?, ?, ?)`,
+		name, yearMonth, amount, active, note, now, now,
+	)
+	return err
+}
+
+func (r *Repo) UpdateIncome(ctx context.Context, id int64, name, yearMonth string, amount int64, isActive bool, note string) error {
+	active := 0
+	if isActive {
+		active = 1
+	}
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE incomes
+		 SET name = ?, year_month = ?, amount = ?, is_active = ?, note = ?, updated_at = ?
+		 WHERE id = ?`,
+		name, yearMonth, amount, active, note, time.Now().Format(time.RFC3339), id,
+	)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (r *Repo) DeleteIncome(ctx context.Context, id int64) error {
+	res, err := r.db.ExecContext(ctx, `DELETE FROM incomes WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 func (r *Repo) ReplaceImportedFile(ctx context.Context, fileName, status, message string) error {
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO imported_files(file_name, imported_at, status, message)

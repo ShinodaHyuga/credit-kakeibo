@@ -57,3 +57,12 @@ type FixedExpense struct {
 	IsActive   bool   `json:"isActive"`
 	Note       string `json:"note"`
 }
+
+type Income struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	YearMonth string `json:"yearMonth"`
+	Amount    int64  `json:"amount"`
+	IsActive  bool   `json:"isActive"`
+	Note      string `json:"note"`
+}

@@ -232,6 +232,66 @@ func (s *Service) DeleteFixedExpense(ctx context.Context, id int64) error {
 	return nil
 }
 
+func (s *Service) Incomes(ctx context.Context, active *bool, name string) ([]domain.Income, error) {
+	return s.repo.Incomes(ctx, repository.IncomeFilter{
+		Active: active,
+		Name:   name,
+	})
+}
+
+func (s *Service) CreateIncome(ctx context.Context, name, yearMonth string, amount int64, isActive bool, note string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("name is required")
+	}
+	if !yearMonthPattern.MatchString(strings.TrimSpace(yearMonth)) {
+		return fmt.Errorf("yearMonth must be YYYY-MM")
+	}
+	return s.repo.CreateIncome(
+		ctx,
+		strings.TrimSpace(name),
+		strings.TrimSpace(yearMonth),
+		amount,
+		isActive,
+		strings.TrimSpace(note),
+	)
+}
+
+func (s *Service) UpdateIncome(ctx context.Context, id int64, name, yearMonth string, amount int64, isActive bool, note string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("name is required")
+	}
+	if !yearMonthPattern.MatchString(strings.TrimSpace(yearMonth)) {
+		return fmt.Errorf("yearMonth must be YYYY-MM")
+	}
+	err := s.repo.UpdateIncome(
+		ctx,
+		id,
+		strings.TrimSpace(name),
+		strings.TrimSpace(yearMonth),
+		amount,
+		isActive,
+		strings.TrimSpace(note),
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("income not found")
+		}
+		return err
+	}
+	return nil
+}
+
+func (s *Service) DeleteIncome(ctx context.Context, id int64) error {
+	err := s.repo.DeleteIncome(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("income not found")
+		}
+		return err
+	}
+	return nil
+}
+
 func (s *Service) ReloadCSV(ctx context.Context) (domain.ImportResult, error) {
 	files, err := csvimport.ListTargetFiles(s.dataDir)
 	if err != nil {

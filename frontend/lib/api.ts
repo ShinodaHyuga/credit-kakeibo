@@ -2,6 +2,7 @@ import type {
   Category,
   CategoryRule,
   FixedExpense,
+  Income,
   ImportResult,
   MonthlySummary,
   Transaction,
@@ -79,6 +80,36 @@ export const api = {
     }),
   deleteFixedExpense: (id: number) =>
     request<{ message: string }>(`/api/fixed-expenses/${id}`, {
+      method: "DELETE",
+    }),
+  incomes: (q: URLSearchParams) => request<Income[]>(`/api/incomes?${q.toString()}`),
+  createIncome: (payload: {
+    name: string;
+    yearMonth: string;
+    amount: number;
+    isActive: boolean;
+    note: string;
+  }) =>
+    request<{ message: string }>(`/api/incomes`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateIncome: (
+    id: number,
+    payload: {
+      name: string;
+      yearMonth: string;
+      amount: number;
+      isActive: boolean;
+      note: string;
+    },
+  ) =>
+    request<{ message: string }>(`/api/incomes/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  deleteIncome: (id: number) =>
+    request<{ message: string }>(`/api/incomes/${id}`, {
       method: "DELETE",
     }),
   reloadImport: () => request<ImportResult>("/api/import/reload", { method: "POST" }),

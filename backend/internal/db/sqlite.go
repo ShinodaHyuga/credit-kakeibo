@@ -93,12 +93,23 @@ func migrate(db *sql.DB) error {
 			updated_at TEXT NOT NULL,
 			FOREIGN KEY (category_id) REFERENCES categories(id)
 		);`,
+		`CREATE TABLE IF NOT EXISTS incomes (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL,
+			year_month TEXT NOT NULL,
+			amount INTEGER NOT NULL,
+			is_active INTEGER NOT NULL DEFAULT 1,
+			note TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		);`,
 		`CREATE INDEX IF NOT EXISTS idx_transactions_year_month ON transactions(year_month);`,
 		`CREATE INDEX IF NOT EXISTS idx_transactions_store_name ON transactions(store_name);`,
 		`CREATE INDEX IF NOT EXISTS idx_transactions_source_file ON transactions(source_file);`,
 		`CREATE INDEX IF NOT EXISTS idx_category_match_rules_category_id ON category_match_rules(category_id);`,
 		`CREATE INDEX IF NOT EXISTS idx_category_match_rules_active ON category_match_rules(is_active);`,
 		`CREATE INDEX IF NOT EXISTS idx_fixed_expenses_active ON fixed_expenses(is_active);`,
+		`CREATE INDEX IF NOT EXISTS idx_incomes_active ON incomes(is_active);`,
 	}
 
 	for _, stmt := range stmts {
