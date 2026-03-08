@@ -11,6 +11,9 @@ import { useIncomesTab } from "@/hooks/useIncomesTab";
 import { useRulesTab } from "@/hooks/useRulesTab";
 import { useSummaryTab } from "@/hooks/useSummaryTab";
 import { useTransactionsTab } from "@/hooks/useTransactionsTab";
+import { useRulesTab } from "@/hooks/useRulesTab";
+import { useSummaryTab } from "@/hooks/useSummaryTab";
+import { useTransactionsTab } from "@/hooks/useTransactionsTab";
 import { api } from "@/lib/api";
 import type { Category } from "@/types/models";
 
@@ -53,9 +56,9 @@ export default function Page() {
     setCategories(data);
   }, []);
 
-  const refreshAll = useCallback(async () => {
-    await Promise.all([loadTransactions(), loadSummary(), loadRulesTab(), loadFixedExpenses(), loadIncomes()]);
-  }, [loadTransactions, loadSummary, loadRulesTab, loadFixedExpenses, loadIncomes]);
+const refreshAll = useCallback(async () => {
+  await Promise.all([loadTransactions(), loadSummary(), loadRulesTab(), loadFixedExpenses(), loadIncomes()]);
+}, [loadTransactions, loadSummary, loadRulesTab, loadFixedExpenses, loadIncomes]);
 
   useEffect(() => {
     refreshAllRef.current = refreshAll;
@@ -85,7 +88,10 @@ export default function Page() {
     void reloadImport();
   }, [categories, initialized, reloadImport]);
 
-  const categoryNames = useMemo(() => categories.map((c) => c.name), [categories]);
+  const categoryNames = useMemo(
+    () => categories.map((c) => c.name).filter((name) => name !== "未分類" && name !== "振込"),
+    [categories],
+  );
 
   return (
     <div className="app">
@@ -118,6 +124,7 @@ export default function Page() {
         <button className={`tab ${activeTab === "income" ? "active" : ""}`} onClick={() => setActiveTab("income")}>
           収入
         </button>
+
       </nav>
 
       <main>
@@ -191,73 +198,73 @@ export default function Page() {
             onCreateRuleFromUncategorized={rulesTab.onCreateRuleFromUncategorized}
           />
         )}
+{activeTab === "fixed" && (
+  <FixedExpensesTab
+    fixedExpenses={fixedTab.fixedExpenses}
+    sortedFixedExpenses={fixedTab.sortedFixedExpenses}
+    fixedDrafts={fixedTab.fixedDrafts}
+    categories={categories}
+    fixedFilterName={fixedTab.fixedFilterName}
+    fixedFilterActive={fixedTab.fixedFilterActive}
+    fixedTotal={fixedTab.fixedTotal}
+    newFixedName={fixedTab.newFixedName}
+    newFixedYearMonth={fixedTab.newFixedYearMonth}
+    newFixedCategoryID={fixedTab.newFixedCategoryID}
+    newFixedAmount={fixedTab.newFixedAmount}
+    newFixedActive={fixedTab.newFixedActive}
+    newFixedNote={fixedTab.newFixedNote}
+    fixedSortMark={fixedTab.fixedSortMark}
+    onToggleFixedSort={fixedTab.onToggleFixedSort}
+    onChangeFixedFilterName={fixedTab.onChangeFixedFilterName}
+    onChangeFixedFilterActive={fixedTab.onChangeFixedFilterActive}
+    onSearch={fixedTab.onSearch}
+    onClear={fixedTab.onClear}
+    onChangeFixedDraft={fixedTab.onChangeFixedDraft}
+    onSave={fixedTab.onSave}
+    onDelete={fixedTab.onDelete}
+    onChangeNewFixedName={fixedTab.onChangeNewFixedName}
+    onChangeNewFixedYearMonth={fixedTab.onChangeNewFixedYearMonth}
+    onChangeNewFixedCategoryID={fixedTab.onChangeNewFixedCategoryID}
+    onChangeNewFixedAmount={fixedTab.onChangeNewFixedAmount}
+    onChangeNewFixedActive={fixedTab.onChangeNewFixedActive}
+    onChangeNewFixedNote={fixedTab.onChangeNewFixedNote}
+    onCreate={fixedTab.onCreate}
+    formatMoney={formatMoney}
+  />
+)}
 
-        {activeTab === "fixed" && (
-          <FixedExpensesTab
-            fixedExpenses={fixedTab.fixedExpenses}
-            sortedFixedExpenses={fixedTab.sortedFixedExpenses}
-            fixedDrafts={fixedTab.fixedDrafts}
-            categories={categories}
-            fixedFilterName={fixedTab.fixedFilterName}
-            fixedFilterActive={fixedTab.fixedFilterActive}
-            fixedTotal={fixedTab.fixedTotal}
-            newFixedName={fixedTab.newFixedName}
-            newFixedYearMonth={fixedTab.newFixedYearMonth}
-            newFixedCategoryID={fixedTab.newFixedCategoryID}
-            newFixedAmount={fixedTab.newFixedAmount}
-            newFixedActive={fixedTab.newFixedActive}
-            newFixedNote={fixedTab.newFixedNote}
-            fixedSortMark={fixedTab.fixedSortMark}
-            onToggleFixedSort={fixedTab.onToggleFixedSort}
-            onChangeFixedFilterName={fixedTab.onChangeFixedFilterName}
-            onChangeFixedFilterActive={fixedTab.onChangeFixedFilterActive}
-            onSearch={fixedTab.onSearch}
-            onClear={fixedTab.onClear}
-            onChangeFixedDraft={fixedTab.onChangeFixedDraft}
-            onSave={fixedTab.onSave}
-            onDelete={fixedTab.onDelete}
-            onChangeNewFixedName={fixedTab.onChangeNewFixedName}
-            onChangeNewFixedYearMonth={fixedTab.onChangeNewFixedYearMonth}
-            onChangeNewFixedCategoryID={fixedTab.onChangeNewFixedCategoryID}
-            onChangeNewFixedAmount={fixedTab.onChangeNewFixedAmount}
-            onChangeNewFixedActive={fixedTab.onChangeNewFixedActive}
-            onChangeNewFixedNote={fixedTab.onChangeNewFixedNote}
-            onCreate={fixedTab.onCreate}
-            formatMoney={formatMoney}
-          />
-        )}
+{activeTab === "income" && (
+  <IncomesTab
+    incomes={incomesTab.incomes}
+    sortedIncomes={incomesTab.sortedIncomes}
+    incomeDrafts={incomesTab.incomeDrafts}
+    incomeFilterName={incomesTab.incomeFilterName}
+    incomeFilterActive={incomesTab.incomeFilterActive}
+    incomeTotal={incomesTab.incomeTotal}
+    newIncomeName={incomesTab.newIncomeName}
+    newIncomeYearMonth={incomesTab.newIncomeYearMonth}
+    newIncomeAmount={incomesTab.newIncomeAmount}
+    newIncomeActive={incomesTab.newIncomeActive}
+    newIncomeNote={incomesTab.newIncomeNote}
+    incomeSortMark={incomesTab.incomeSortMark}
+    onToggleIncomeSort={incomesTab.onToggleIncomeSort}
+    onChangeIncomeFilterName={incomesTab.onChangeIncomeFilterName}
+    onChangeIncomeFilterActive={incomesTab.onChangeIncomeFilterActive}
+    onSearch={incomesTab.onSearch}
+    onClear={incomesTab.onClear}
+    onChangeIncomeDraft={incomesTab.onChangeIncomeDraft}
+    onSave={incomesTab.onSave}
+    onDelete={incomesTab.onDelete}
+    onChangeNewIncomeName={incomesTab.onChangeNewIncomeName}
+    onChangeNewIncomeYearMonth={incomesTab.onChangeNewIncomeYearMonth}
+    onChangeNewIncomeAmount={incomesTab.onChangeNewIncomeAmount}
+    onChangeNewIncomeActive={incomesTab.onChangeNewIncomeActive}
+    onChangeNewIncomeNote={incomesTab.onChangeNewIncomeNote}
+    onCreate={incomesTab.onCreate}
+    formatMoney={formatMoney}
+  />
+)}
 
-        {activeTab === "income" && (
-          <IncomesTab
-            incomes={incomesTab.incomes}
-            sortedIncomes={incomesTab.sortedIncomes}
-            incomeDrafts={incomesTab.incomeDrafts}
-            incomeFilterName={incomesTab.incomeFilterName}
-            incomeFilterActive={incomesTab.incomeFilterActive}
-            incomeTotal={incomesTab.incomeTotal}
-            newIncomeName={incomesTab.newIncomeName}
-            newIncomeYearMonth={incomesTab.newIncomeYearMonth}
-            newIncomeAmount={incomesTab.newIncomeAmount}
-            newIncomeActive={incomesTab.newIncomeActive}
-            newIncomeNote={incomesTab.newIncomeNote}
-            incomeSortMark={incomesTab.incomeSortMark}
-            onToggleIncomeSort={incomesTab.onToggleIncomeSort}
-            onChangeIncomeFilterName={incomesTab.onChangeIncomeFilterName}
-            onChangeIncomeFilterActive={incomesTab.onChangeIncomeFilterActive}
-            onSearch={incomesTab.onSearch}
-            onClear={incomesTab.onClear}
-            onChangeIncomeDraft={incomesTab.onChangeIncomeDraft}
-            onSave={incomesTab.onSave}
-            onDelete={incomesTab.onDelete}
-            onChangeNewIncomeName={incomesTab.onChangeNewIncomeName}
-            onChangeNewIncomeYearMonth={incomesTab.onChangeNewIncomeYearMonth}
-            onChangeNewIncomeAmount={incomesTab.onChangeNewIncomeAmount}
-            onChangeNewIncomeActive={incomesTab.onChangeNewIncomeActive}
-            onChangeNewIncomeNote={incomesTab.onChangeNewIncomeNote}
-            onCreate={incomesTab.onCreate}
-            formatMoney={formatMoney}
-          />
-        )}
       </main>
 
       {notice ? <div className={`notice ${notice.error ? "error" : ""}`}>{notice.message}</div> : null}

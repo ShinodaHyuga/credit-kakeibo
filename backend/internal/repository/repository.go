@@ -91,10 +91,27 @@ LEFT JOIN categories c ON c.id = r.category_id`
 func (r *Repo) Transactions(ctx context.Context, f TransactionFilter) ([]domain.Transaction, error) {
 	base := `
 SELECT t.id, t.use_date, t.year_month, t.store_name,
-       COALESCE(c.name, '未分類') AS category,
+       COALESCE(c_active.name, c_any.name, '未分類') AS category,
        t.amount,
-       r.id AS applied_rule_id
-FROM transactions t` + ruleJoinClause() + `
+       COALESCE(r_active.id, r_any.id) AS applied_rule_id
+FROM transactions t
+LEFT JOIN category_match_rules r_active ON r_active.id = (
+	SELECT r2.id
+	FROM category_match_rules r2
+	WHERE r2.is_active = 1
+	  AND instr(t.store_name, r2.match_text) > 0
+	ORDER BY length(r2.match_text) DESC, r2.id ASC
+	LIMIT 1
+)
+LEFT JOIN categories c_active ON c_active.id = r_active.category_id
+LEFT JOIN category_match_rules r_any ON r_any.id = (
+	SELECT r3.id
+	FROM category_match_rules r3
+	WHERE instr(t.store_name, r3.match_text) > 0
+	ORDER BY length(r3.match_text) DESC, r3.id ASC
+	LIMIT 1
+)
+LEFT JOIN categories c_any ON c_any.id = r_any.category_id
 WHERE 1=1`
 
 	args := make([]any, 0, 10)
@@ -105,7 +122,7 @@ WHERE 1=1`
 		}
 	}
 	if f.Uncategorized {
-		base += " AND r.id IS NULL"
+		base += " AND r_any.id IS NULL"
 	}
 	if f.StoreName != "" {
 		base += " AND t.store_name LIKE ?"
@@ -140,6 +157,11 @@ SELECT base.year_month, base.category, SUM(base.amount)
 FROM (
   SELECT t.year_month AS year_month, COALESCE(c.name, '未分類') AS category, t.amount AS amount
   FROM transactions t` + ruleJoinClause() + `
+  WHERE NOT EXISTS (
+    SELECT 1 FROM category_match_rules r0
+    WHERE r0.is_active = 0
+      AND instr(t.store_name, r0.match_text) > 0
+  )
   UNION ALL
   SELECT fe.year_month AS year_month, c.name AS category, fe.amount AS amount
   FROM fixed_expenses fe
@@ -246,7 +268,11 @@ func (r *Repo) CreateCategoryRule(ctx context.Context, matchText string, categor
 	now := time.Now().Format(time.RFC3339)
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO category_match_rules(match_text, category_id, is_active, created_at, updated_at)
-		 VALUES(?, ?, ?, ?, ?)`,
+		 VALUES(?, ?, ?, ?, ?)
+		 ON CONFLICT(match_text) DO UPDATE SET
+		   category_id = excluded.category_id,
+		   is_active = excluded.is_active,
+		   updated_at = excluded.updated_at`,
 		matchText, categoryID, active, now, now,
 	)
 	return err
@@ -291,16 +317,23 @@ func (r *Repo) DeleteCategoryRule(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (r *Repo) UncategorizedStores(ctx context.Context, storeName string) ([]domain.UncategorizedStore, error) {
+func (r *Repo) UncategorizedStores(ctx context.Context, storeName, sourceFile string, includeCategorized bool) ([]domain.UncategorizedStore, error) {
 	q := `
 SELECT DISTINCT t.store_name
 FROM transactions t
-WHERE NOT EXISTS (
+WHERE 1=1`
+	args := make([]any, 0, 2)
+	if !includeCategorized {
+		q += `
+ AND NOT EXISTS (
 	SELECT 1 FROM category_match_rules r
-	WHERE r.is_active = 1
-	  AND instr(t.store_name, r.match_text) > 0
+	WHERE instr(t.store_name, r.match_text) > 0
 )`
-	args := make([]any, 0, 1)
+	}
+	if sourceFile != "" {
+		q += " AND t.source_file = ?"
+		args = append(args, sourceFile)
+	}
 	if storeName != "" {
 		q += " AND t.store_name LIKE ?"
 		args = append(args, "%"+storeName+"%")

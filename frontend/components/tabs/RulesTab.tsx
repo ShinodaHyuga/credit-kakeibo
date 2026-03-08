@@ -69,7 +69,7 @@ export function RulesTab(props: Props) {
             <th className="sortable" onClick={() => props.onToggleRuleSort("category")}>
               カテゴリ{props.ruleSortMark("category")}
             </th>
-            <th>有効</th>
+            <th>集計</th>
             <th>操作</th>
           </tr>
         </thead>

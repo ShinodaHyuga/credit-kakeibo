@@ -180,7 +180,9 @@ func (h *Handler) handleUncategorizedStores(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusMethodNotAllowed, "bad_request", "method not allowed")
 		return
 	}
-	items, err := h.svc.UncategorizedStores(r.Context(), r.URL.Query().Get("storeName"))
+	q := r.URL.Query()
+	includeCategorized := q.Get("includeCategorized") == "true"
+	items, err := h.svc.UncategorizedStores(r.Context(), q.Get("storeName"), q.Get("sourceFile"), includeCategorized)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal_error", err.Error())
 		return

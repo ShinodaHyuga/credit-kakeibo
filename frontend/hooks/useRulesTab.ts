@@ -12,7 +12,7 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
   const [uncQuickCategory, setUncQuickCategory] = useState<Record<string, number>>({});
 
   const [ruleFilterText, setRuleFilterText] = useState("");
-  const [ruleFilterActive, setRuleFilterActive] = useState(true);
+  const [ruleFilterActive, setRuleFilterActive] = useState(false);
   const [ruleSort, setRuleSort] = useState<{ key: RuleSortKey; direction: SortDirection }>({ key: "id", direction: "asc" });
 
   const [newMatchText, setNewMatchText] = useState("");
@@ -26,10 +26,10 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
     }
   }, [categories, newCategoryId]);
 
-  const loadRules = useCallback(async () => {
+  const loadRules = useCallback(async (useActiveFilter = true) => {
     const q = new URLSearchParams();
     if (ruleFilterText.trim()) q.set("matchText", ruleFilterText.trim());
-    if (ruleFilterActive) q.set("active", "true");
+    if (useActiveFilter && ruleFilterActive) q.set("active", "true");
 
     const data = await api.categoryRules(q);
     setRules(data);
@@ -60,7 +60,8 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
   }, [uncStore, categories]);
 
   const loadRulesTab = useCallback(async () => {
-    await Promise.all([loadRules(), loadUncategorizedStores()]);
+    // refreshAll経由では無効ルールも残して表示する
+    await Promise.all([loadRules(false), loadUncategorizedStores()]);
   }, [loadRules, loadUncategorizedStores]);
 
   const sortedRules = useMemo(() => {
@@ -93,13 +94,13 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
   }, []);
 
   const onSearchRules = useCallback(() => {
-    void loadRules().catch((e) => showNotice((e as Error).message, true));
+    void loadRules(true).catch((e) => showNotice((e as Error).message, true));
   }, [loadRules, showNotice]);
 
   const onClearRules = useCallback(() => {
     setRuleFilterText("");
-    setRuleFilterActive(true);
-    void loadRules().catch((e) => showNotice((e as Error).message, true));
+    setRuleFilterActive(false);
+    void loadRules(true).catch((e) => showNotice((e as Error).message, true));
   }, [loadRules, showNotice]);
 
   const onSaveRule = useCallback((id: number) => {
@@ -108,9 +109,10 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
     void api
       .updateCategoryRule(id, draft)
       .then(() => refreshAll())
+      .then(() => loadRules(false))
       .then(() => showNotice(`ルール更新: #${id}`))
       .catch((e) => showNotice((e as Error).message, true));
-  }, [ruleDrafts, refreshAll, showNotice]);
+  }, [ruleDrafts, refreshAll, loadRules, showNotice]);
 
   const onDeleteRule = useCallback((id: number) => {
     void api

@@ -152,8 +152,8 @@ func (s *Service) DeleteCategoryRule(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (s *Service) UncategorizedStores(ctx context.Context, storeName string) ([]domain.UncategorizedStore, error) {
-	return s.repo.UncategorizedStores(ctx, storeName)
+func (s *Service) UncategorizedStores(ctx context.Context, storeName, sourceFile string, includeCategorized bool) ([]domain.UncategorizedStore, error) {
+	return s.repo.UncategorizedStores(ctx, storeName, sourceFile, includeCategorized)
 }
 
 func (s *Service) FixedExpenses(ctx context.Context, active *bool, name string) ([]domain.FixedExpense, error) {
