@@ -253,7 +253,7 @@ select:focus {
 
 .chart-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 40% 60%;
   grid-template-areas:
     "s1 s1"
     "s2 s3";
@@ -314,6 +314,32 @@ select:focus {
 .chart-canvas {
   width: 100%;
   min-height: 280px;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.ratio-legend .legend-item {
+  font-size: 13px;
+}
+
+.legend-item i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
 }
 
 .chart-empty {

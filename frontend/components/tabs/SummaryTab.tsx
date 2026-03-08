@@ -5,7 +5,6 @@ import {
   CartesianGrid,
   Cell,
   ComposedChart,
-  Legend,
   Line,
   Pie,
   PieChart,
@@ -27,19 +26,44 @@ type Props = {
 };
 
 export function SummaryTab(props: Props) {
+  const OTHERS_LABEL = "他カテゴリ";
   const [selectedMonth, setSelectedMonth] = useState("");
 
   const monthOptions = useMemo(() => props.summaries.map((row) => row.yearMonth), [props.summaries]);
   const selectedMonthValue = monthOptions.includes(selectedMonth) ? selectedMonth : monthOptions[monthOptions.length - 1] ?? "";
 
-  const palette = ["#2a9d8f", "#3a86ff", "#ff9f1c", "#ef476f", "#6a4c93", "#06d6a0", "#118ab2", "#f9844a", "#90be6d"];
-
-  const categoryIndexMap = useMemo(() => {
-    return props.categoryNames.reduce<Record<string, number>>((acc, name, index) => {
-      acc[name] = index;
-      return acc;
-    }, {});
+  const categoryColors = useMemo(() => {
+    const modernPalette = [
+      "#2563eb",
+      "#06b6d4",
+      "#22c55e",
+      "#84cc16",
+      "#eab308",
+      "#f97316",
+      "#ef4444",
+      "#ec4899",
+      "#a855f7",
+      "#6366f1",
+      "#14b8a6",
+      "#0ea5e9",
+    ];
+    const map: Record<string, string> = {};
+    props.categoryNames.forEach((name, index) => {
+      map[name] = modernPalette[index % modernPalette.length];
+    });
+    return map;
   }, [props.categoryNames]);
+
+  const categoryTotals = useMemo(
+    () =>
+      props.categoryNames
+        .map((name) => ({
+          name,
+          total: props.summaries.reduce((sum, row) => sum + (row.categories[name] ?? 0), 0),
+        }))
+        .sort((a, b) => b.total - a.total),
+    [props.categoryNames, props.summaries],
+  );
 
   const monthlyTrendData = useMemo(
     () =>
@@ -70,16 +94,18 @@ export function SummaryTab(props: Props) {
       .sort((a, b) => b.value - a.value);
     const top = sorted.slice(0, 5);
     const others = sorted.slice(5).reduce((sum, item) => sum + item.value, 0);
-    return others > 0 ? [...top, { name: "その他", value: others }] : top;
-  }, [props.categoryNames, selectedMonthSummary]);
+    return others > 0 ? [...top, { name: OTHERS_LABEL, value: others }] : top;
+  }, [OTHERS_LABEL, props.categoryNames, selectedMonthSummary]);
 
-  const rankingData = useMemo(() => {
-    const totals = props.categoryNames.map((name) => ({
-      name,
-      value: props.summaries.reduce((sum, row) => sum + (row.categories[name] ?? 0), 0),
-    }));
-    return totals.filter((item) => item.value > 0).sort((a, b) => b.value - a.value).slice(0, 8);
-  }, [props.categoryNames, props.summaries]);
+  const rankingData = useMemo(
+    () => categoryTotals.map((item) => ({ name: item.name, value: item.total })).filter((item) => item.value > 0).slice(0, 8),
+    [categoryTotals],
+  );
+
+  const getCategoryColor = (name: string): string => {
+    if (name === OTHERS_LABEL) return "#64748b";
+    return categoryColors[name] ?? "#2a9d8f";
+  };
 
   return (
     <section className="panel active">
@@ -109,13 +135,12 @@ export function SummaryTab(props: Props) {
                   <XAxis dataKey="yearMonth" />
                   <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
                   <Tooltip formatter={(value) => `${props.formatMoney(Number(value))}円`} />
-                  <Legend />
-                  {props.categoryNames.map((name, index) => (
+                  {props.categoryNames.map((name) => (
                     <Bar
                       key={name}
                       dataKey={name}
                       stackId="expense"
-                      fill={palette[index % palette.length]}
+                      fill={getCategoryColor(name)}
                       name={name}
                       maxBarSize={48}
                     />
@@ -130,6 +155,18 @@ export function SummaryTab(props: Props) {
                   />
                 </ComposedChart>
               </ResponsiveContainer>
+            </div>
+            <div className="chart-legend">
+              {props.categoryNames.map((name) => (
+                <span key={name} className="legend-item">
+                  <i style={{ backgroundColor: getCategoryColor(name) }} />
+                  {name}
+                </span>
+              ))}
+              <span className="legend-item">
+                <i style={{ backgroundColor: "#ff7f11" }} />
+                収入
+              </span>
             </div>
           </article>
 
@@ -150,24 +187,33 @@ export function SummaryTab(props: Props) {
             </div>
             <div className="chart-canvas">
               {ratioData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={280}>
+                <ResponsiveContainer width="100%" height={230}>
                   <PieChart>
                     <Pie data={ratioData} dataKey="value" nameKey="name" innerRadius={52} outerRadius={88} paddingAngle={2}>
                       {ratioData.map((item) => (
                         <Cell
                           key={item.name}
-                          fill={palette[(categoryIndexMap[item.name] ?? ratioData.indexOf(item)) % palette.length]}
+                          fill={item.name === OTHERS_LABEL ? "#b08968" : getCategoryColor(item.name)}
                         />
                       ))}
                     </Pie>
                     <Tooltip formatter={(value) => `${props.formatMoney(Number(value))}円`} />
-                    <Legend />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
                 <p className="chart-empty">この月の支出データがありません</p>
               )}
             </div>
+            {ratioData.length > 0 ? (
+              <div className="chart-legend ratio-legend">
+                {ratioData.map((item) => (
+                  <span key={item.name} className="legend-item">
+                    <i style={{ backgroundColor: getCategoryColor(item.name) }} />
+                    {item.name}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </article>
 
           <article className="chart-card chart-s3">
@@ -178,12 +224,16 @@ export function SummaryTab(props: Props) {
             <div className="chart-canvas">
               {rankingData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={rankingData} layout="vertical" margin={{ left: 16, right: 8 }}>
+                  <BarChart data={rankingData} layout="vertical" margin={{ top: 6, right: 14, bottom: 4, left: 6 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#eadfce" />
                     <XAxis type="number" tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
-                    <YAxis type="category" dataKey="name" width={92} />
+                    <YAxis type="category" dataKey="name" width={102} tick={{ fontSize: 12 }} />
                     <Tooltip formatter={(value) => `${props.formatMoney(Number(value))}円`} />
-                    <Bar dataKey="value" fill="#2a9d8f" radius={[0, 6, 6, 0]} />
+                    <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                      {rankingData.map((item) => (
+                        <Cell key={item.name} fill={getCategoryColor(item.name)} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
