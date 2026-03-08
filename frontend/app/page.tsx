@@ -78,7 +78,7 @@ export default function Page() {
   }, [categories, initialized, reloadImport]);
 
   const categoryNames = useMemo(
-    () => categories.map((c) => c.name).filter((name) => name !== "未分類" && name !== "振込"),
+    () => Array.from(new Set(categories.map((c) => c.name).filter((name) => name !== "未分類" && name !== "振込"))),
     [categories],
   );
 
