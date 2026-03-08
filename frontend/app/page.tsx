@@ -84,9 +84,10 @@ export default function Page() {
 
   return (
     <div className="app">
-      <header>
-        <div>
-          <h1>支出管理アプリ</h1>
+      <header className="topbar">
+        <div className="title-block">
+          <p className="eyebrow">Credit Kakeibo</p>
+          <h1>支出管理ダッシュボード</h1>
           <p className="subtitle">Next.js UI / Go API / SQLite</p>
         </div>
         <div className="header-actions">
@@ -109,7 +110,7 @@ export default function Page() {
         </button>
       </nav>
 
-      <main>
+      <main className="content">
         {activeTab === "transactions" && (
           <TransactionsTab
             transactions={transactionsTab.transactions}
