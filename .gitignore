@@ -1,18 +1,27 @@
-# macOS
+# OS / Editor
 .DS_Store
-
-# Editor
 .vscode/
 .idea/
 
-# logs
-*.log
-
-# search
+# Environment files
+.env
+.env.*
 *.env
 
-# data
-data/
+# Logs
+*.log
+logs/
 
-# ai
+# Frontend (Next.js)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Backend local DB artifacts
+backend/app.db
+backend/app.db-shm
+backend/app.db-wal
+
+# Project-local generated content
+data/
 ai/
