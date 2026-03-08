@@ -1,6 +1,7 @@
 import type {
   Category,
   CategoryRule,
+  FixedExpense,
   ImportResult,
   MonthlySummary,
   Transaction,
@@ -48,5 +49,37 @@ export const api = {
     }),
   uncategorizedStores: (q: URLSearchParams) =>
     request<UncategorizedStore[]>(`/api/uncategorized-stores?${q.toString()}`),
+  fixedExpenses: (q: URLSearchParams) => request<FixedExpense[]>(`/api/fixed-expenses?${q.toString()}`),
+  createFixedExpense: (payload: {
+    name: string;
+    yearMonth: string;
+    categoryId: number;
+    amount: number;
+    isActive: boolean;
+    note: string;
+  }) =>
+    request<{ message: string }>(`/api/fixed-expenses`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateFixedExpense: (
+    id: number,
+    payload: {
+      name: string;
+      yearMonth: string;
+      categoryId: number;
+      amount: number;
+      isActive: boolean;
+      note: string;
+    },
+  ) =>
+    request<{ message: string }>(`/api/fixed-expenses/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  deleteFixedExpense: (id: number) =>
+    request<{ message: string }>(`/api/fixed-expenses/${id}`, {
+      method: "DELETE",
+    }),
   reloadImport: () => request<ImportResult>("/api/import/reload", { method: "POST" }),
 };

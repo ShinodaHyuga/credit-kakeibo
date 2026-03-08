@@ -37,3 +37,14 @@ export type ImportResult = {
   successFiles: number;
   failedFiles: number;
 };
+
+export type FixedExpense = {
+  id: number;
+  name: string;
+  yearMonth: string;
+  categoryId: number;
+  category: string;
+  amount: number;
+  isActive: boolean;
+  note: string;
+};

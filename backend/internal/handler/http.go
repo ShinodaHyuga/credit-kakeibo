@@ -24,6 +24,8 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/category-rules", h.handleCategoryRules)
 	mux.HandleFunc("/api/category-rules/", h.handleCategoryRuleByID)
 	mux.HandleFunc("/api/uncategorized-stores", h.handleUncategorizedStores)
+	mux.HandleFunc("/api/fixed-expenses", h.handleFixedExpenses)
+	mux.HandleFunc("/api/fixed-expenses/", h.handleFixedExpenseByID)
 	mux.HandleFunc("/api/import/reload", h.handleImportReload)
 	mux.HandleFunc("/api/import/status", h.handleImportStatus)
 }
@@ -182,6 +184,93 @@ func (h *Handler) handleUncategorizedStores(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	writeData(w, http.StatusOK, items)
+}
+
+func (h *Handler) handleFixedExpenses(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		q := r.URL.Query()
+		var active *bool
+		if raw := strings.TrimSpace(q.Get("active")); raw != "" {
+			v := raw == "true"
+			active = &v
+		}
+		items, err := h.svc.FixedExpenses(r.Context(), active, q.Get("name"))
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal_error", err.Error())
+			return
+		}
+		writeData(w, http.StatusOK, items)
+	case http.MethodPost:
+		var req struct {
+			Name       string `json:"name"`
+			YearMonth  string `json:"yearMonth"`
+			CategoryID int64  `json:"categoryId"`
+			Amount     int64  `json:"amount"`
+			IsActive   *bool  `json:"isActive"`
+			Note       string `json:"note"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "bad_request", "invalid json")
+			return
+		}
+		active := true
+		if req.IsActive != nil {
+			active = *req.IsActive
+		}
+		if err := h.svc.CreateFixedExpense(r.Context(), req.Name, req.YearMonth, req.CategoryID, req.Amount, active, req.Note); err != nil {
+			writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+			return
+		}
+		writeData(w, http.StatusOK, map[string]string{"message": "created"})
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "bad_request", "method not allowed")
+	}
+}
+
+func (h *Handler) handleFixedExpenseByID(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(strings.TrimPrefix(r.URL.Path, "/api/fixed-expenses/"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid id")
+		return
+	}
+
+	switch r.Method {
+	case http.MethodPut:
+		var req struct {
+			Name       string `json:"name"`
+			YearMonth  string `json:"yearMonth"`
+			CategoryID int64  `json:"categoryId"`
+			Amount     int64  `json:"amount"`
+			IsActive   bool   `json:"isActive"`
+			Note       string `json:"note"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "bad_request", "invalid json")
+			return
+		}
+		if err := h.svc.UpdateFixedExpense(r.Context(), id, req.Name, req.YearMonth, req.CategoryID, req.Amount, req.IsActive, req.Note); err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				writeError(w, http.StatusNotFound, "not_found", err.Error())
+				return
+			}
+			writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+			return
+		}
+		writeData(w, http.StatusOK, map[string]string{"message": "updated"})
+	case http.MethodDelete:
+		if err := h.svc.DeleteFixedExpense(r.Context(), id); err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				writeError(w, http.StatusNotFound, "not_found", err.Error())
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "internal_error", err.Error())
+			return
+		}
+		writeData(w, http.StatusOK, map[string]string{"message": "deleted"})
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "bad_request", "method not allowed")
+	}
 }
 
 func (h *Handler) handleImportReload(w http.ResponseWriter, r *http.Request) {

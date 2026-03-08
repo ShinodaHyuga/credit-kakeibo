@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -19,6 +20,8 @@ type Service struct {
 	logger  *log.Logger
 	dataDir string
 }
+
+var yearMonthPattern = regexp.MustCompile(`^\d{4}-\d{2}$`)
 
 func New(repo *repository.Repo, logger *log.Logger, dataDir string) *Service {
 	return &Service{repo: repo, logger: logger, dataDir: dataDir}
@@ -151,6 +154,82 @@ func (s *Service) DeleteCategoryRule(ctx context.Context, id int64) error {
 
 func (s *Service) UncategorizedStores(ctx context.Context, storeName string) ([]domain.UncategorizedStore, error) {
 	return s.repo.UncategorizedStores(ctx, storeName)
+}
+
+func (s *Service) FixedExpenses(ctx context.Context, active *bool, name string) ([]domain.FixedExpense, error) {
+	return s.repo.FixedExpenses(ctx, repository.FixedExpenseFilter{
+		Active: active,
+		Name:   name,
+	})
+}
+
+func (s *Service) CreateFixedExpense(ctx context.Context, name, yearMonth string, categoryID, amount int64, isActive bool, note string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("name is required")
+	}
+	if !yearMonthPattern.MatchString(strings.TrimSpace(yearMonth)) {
+		return fmt.Errorf("yearMonth must be YYYY-MM")
+	}
+	exists, err := s.repo.CategoryExists(ctx, categoryID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("category not found")
+	}
+	return s.repo.CreateFixedExpense(
+		ctx,
+		strings.TrimSpace(name),
+		strings.TrimSpace(yearMonth),
+		categoryID,
+		amount,
+		isActive,
+		strings.TrimSpace(note),
+	)
+}
+
+func (s *Service) UpdateFixedExpense(ctx context.Context, id int64, name, yearMonth string, categoryID, amount int64, isActive bool, note string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("name is required")
+	}
+	if !yearMonthPattern.MatchString(strings.TrimSpace(yearMonth)) {
+		return fmt.Errorf("yearMonth must be YYYY-MM")
+	}
+	exists, err := s.repo.CategoryExists(ctx, categoryID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("category not found")
+	}
+	err = s.repo.UpdateFixedExpense(
+		ctx,
+		id,
+		strings.TrimSpace(name),
+		strings.TrimSpace(yearMonth),
+		categoryID,
+		amount,
+		isActive,
+		strings.TrimSpace(note),
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("fixed expense not found")
+		}
+		return err
+	}
+	return nil
+}
+
+func (s *Service) DeleteFixedExpense(ctx context.Context, id int64) error {
+	err := s.repo.DeleteFixedExpense(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("fixed expense not found")
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *Service) ReloadCSV(ctx context.Context) (domain.ImportResult, error) {

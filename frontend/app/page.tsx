@@ -2,14 +2,30 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
-import type { Category, CategoryRule, MonthlySummary, Transaction, UncategorizedStore } from "@/types/models";
+import type {
+  Category,
+  CategoryRule,
+  FixedExpense,
+  MonthlySummary,
+  Transaction,
+  UncategorizedStore,
+} from "@/types/models";
 
-type Tab = "transactions" | "summary" | "rules";
+type Tab = "transactions" | "summary" | "rules" | "fixed";
 
 type RuleDraft = {
   matchText: string;
   categoryId: number;
   isActive: boolean;
+};
+
+type FixedExpenseDraft = {
+  name: string;
+  yearMonth: string;
+  categoryId: number;
+  amount: number;
+  isActive: boolean;
+  note: string;
 };
 
 function formatMoney(v: number): string {
@@ -24,8 +40,10 @@ export default function Page() {
   const [summaries, setSummaries] = useState<MonthlySummary[]>([]);
   const [rules, setRules] = useState<CategoryRule[]>([]);
   const [uncategorizedStores, setUncategorizedStores] = useState<UncategorizedStore[]>([]);
+  const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
 
   const [ruleDrafts, setRuleDrafts] = useState<Record<number, RuleDraft>>({});
+  const [fixedDrafts, setFixedDrafts] = useState<Record<number, FixedExpenseDraft>>({});
   const [txQuickCategory, setTxQuickCategory] = useState<Record<number, number>>({});
   const [uncQuickCategory, setUncQuickCategory] = useState<Record<string, number>>({});
 
@@ -45,6 +63,15 @@ export default function Page() {
 
   const [uncStore, setUncStore] = useState("");
 
+  const [fixedFilterName, setFixedFilterName] = useState("");
+  const [fixedFilterActive, setFixedFilterActive] = useState(true);
+  const [newFixedName, setNewFixedName] = useState("");
+  const [newFixedYearMonth, setNewFixedYearMonth] = useState("");
+  const [newFixedCategoryID, setNewFixedCategoryID] = useState<number>(0);
+  const [newFixedAmount, setNewFixedAmount] = useState<number>(0);
+  const [newFixedActive, setNewFixedActive] = useState(true);
+  const [newFixedNote, setNewFixedNote] = useState("");
+
   const [importResult, setImportResult] = useState("");
   const [notice, setNotice] = useState<{ message: string; error: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -62,7 +89,10 @@ export default function Page() {
     if (data.length > 0 && newCategoryId === 0) {
       setNewCategoryId(data[0].id);
     }
-  }, [newCategoryId]);
+    if (data.length > 0 && newFixedCategoryID === 0) {
+      setNewFixedCategoryID(data[0].id);
+    }
+  }, [newCategoryId, newFixedCategoryID]);
 
   const loadTransactions = useCallback(async () => {
     const q = new URLSearchParams();
@@ -123,9 +153,30 @@ export default function Page() {
     });
   }, [uncStore, categories]);
 
+  const loadFixedExpenses = useCallback(async () => {
+    const q = new URLSearchParams();
+    if (fixedFilterName.trim()) q.set("name", fixedFilterName.trim());
+    if (fixedFilterActive) q.set("active", "true");
+    const data = await api.fixedExpenses(q);
+    setFixedExpenses(data);
+
+    const drafts: Record<number, FixedExpenseDraft> = {};
+    for (const row of data) {
+      drafts[row.id] = {
+        name: row.name,
+        yearMonth: row.yearMonth,
+        categoryId: row.categoryId,
+        amount: row.amount,
+        isActive: row.isActive,
+        note: row.note,
+      };
+    }
+    setFixedDrafts(drafts);
+  }, [fixedFilterActive, fixedFilterName]);
+
   const refreshAll = useCallback(async () => {
-    await Promise.all([loadTransactions(), loadSummary(), loadRules(), loadUncategorizedStores()]);
-  }, [loadTransactions, loadSummary, loadRules, loadUncategorizedStores]);
+    await Promise.all([loadTransactions(), loadSummary(), loadRules(), loadUncategorizedStores(), loadFixedExpenses()]);
+  }, [loadTransactions, loadSummary, loadRules, loadUncategorizedStores, loadFixedExpenses]);
 
   const reloadImport = useCallback(async () => {
     setBusy(true);
@@ -169,6 +220,7 @@ export default function Page() {
   }, [categories, reloadImport]);
 
   const categoryNames = useMemo(() => categories.map((c) => c.name), [categories]);
+  const fixedTotal = useMemo(() => fixedExpenses.reduce((sum, row) => sum + row.amount, 0), [fixedExpenses]);
 
   return (
     <div className="app">
@@ -194,6 +246,9 @@ export default function Page() {
         </button>
         <button className={`tab ${activeTab === "rules" ? "active" : ""}`} onClick={() => setActiveTab("rules")}>
           カテゴリ管理
+        </button>
+        <button className={`tab ${activeTab === "fixed" ? "active" : ""}`} onClick={() => setActiveTab("fixed")}>
+          固定支出
         </button>
       </nav>
 
@@ -527,6 +582,215 @@ export default function Page() {
               ))}
             </tbody>
           </table>
+        </section>
+
+        <section className={`panel ${activeTab === "fixed" ? "active" : ""}`}>
+          <div className="section-head">
+            <h3>固定支出</h3>
+            <span className="badge">{fixedExpenses.length.toLocaleString("ja-JP")} 件</span>
+          </div>
+          <div className="controls">
+            <input value={fixedFilterName} onChange={(e) => setFixedFilterName(e.target.value)} placeholder="支出名検索" />
+            <label>
+              <input
+                type="checkbox"
+                checked={fixedFilterActive}
+                onChange={(e) => setFixedFilterActive(e.target.checked)}
+              />
+              有効のみ
+            </label>
+            <button onClick={() => void loadFixedExpenses().catch((e) => showNotice(e.message, true))}>検索</button>
+            <button
+              className="ghost"
+              onClick={() => {
+                setFixedFilterName("");
+                setFixedFilterActive(true);
+                void loadFixedExpenses().catch((e) => showNotice(e.message, true));
+              }}
+            >
+              クリア
+            </button>
+            <span className="badge">合計 {formatMoney(fixedTotal)} 円</span>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>支出名</th>
+                <th>利用年月</th>
+                <th>カテゴリ</th>
+                <th>金額</th>
+                <th>有効</th>
+                <th>メモ</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {fixedExpenses.map((row) => {
+                const draft = fixedDrafts[row.id];
+                if (!draft) return null;
+                return (
+                  <tr key={row.id}>
+                    <td>{row.id}</td>
+                    <td>
+                      <input
+                        value={draft.name}
+                        onChange={(e) =>
+                          setFixedDrafts((prev) => ({
+                            ...prev,
+                            [row.id]: { ...prev[row.id], name: e.target.value },
+                          }))
+                        }
+                      />
+                    </td>
+                    <td>
+                      <input
+                        value={draft.yearMonth}
+                        onChange={(e) =>
+                          setFixedDrafts((prev) => ({
+                            ...prev,
+                            [row.id]: { ...prev[row.id], yearMonth: e.target.value },
+                          }))
+                        }
+                        placeholder="YYYY-MM"
+                      />
+                    </td>
+                    <td>
+                      <select
+                        value={draft.categoryId}
+                        onChange={(e) =>
+                          setFixedDrafts((prev) => ({
+                            ...prev,
+                            [row.id]: { ...prev[row.id], categoryId: Number(e.target.value) },
+                          }))
+                        }
+                      >
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        value={draft.amount}
+                        onChange={(e) =>
+                          setFixedDrafts((prev) => ({
+                            ...prev,
+                            [row.id]: { ...prev[row.id], amount: Number(e.target.value) },
+                          }))
+                        }
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={draft.isActive}
+                        onChange={(e) =>
+                          setFixedDrafts((prev) => ({
+                            ...prev,
+                            [row.id]: { ...prev[row.id], isActive: e.target.checked },
+                          }))
+                        }
+                      />
+                    </td>
+                    <td>
+                      <input
+                        value={draft.note}
+                        onChange={(e) =>
+                          setFixedDrafts((prev) => ({
+                            ...prev,
+                            [row.id]: { ...prev[row.id], note: e.target.value },
+                          }))
+                        }
+                      />
+                    </td>
+                    <td>
+                      <button
+                        onClick={() => {
+                          void api
+                            .updateFixedExpense(row.id, draft)
+                            .then(() => refreshAll())
+                            .then(() => showNotice(`固定支出更新: #${row.id}`))
+                            .catch((e) => showNotice(e.message, true));
+                        }}
+                      >
+                        保存
+                      </button>
+                      <button
+                        onClick={() => {
+                          void api
+                            .deleteFixedExpense(row.id)
+                            .then(() => refreshAll())
+                            .then(() => showNotice(`固定支出削除: #${row.id}`))
+                            .catch((e) => showNotice(e.message, true));
+                        }}
+                      >
+                        削除
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          <div className="section-head">
+            <h3>新規固定支出追加</h3>
+          </div>
+          <div className="controls">
+            <input value={newFixedName} onChange={(e) => setNewFixedName(e.target.value)} placeholder="支出名" />
+            <input
+              value={newFixedYearMonth}
+              onChange={(e) => setNewFixedYearMonth(e.target.value)}
+              placeholder="YYYY-MM"
+            />
+            <select value={newFixedCategoryID} onChange={(e) => setNewFixedCategoryID(Number(e.target.value))}>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              value={newFixedAmount}
+              onChange={(e) => setNewFixedAmount(Number(e.target.value))}
+              placeholder="金額"
+            />
+            <label>
+              <input type="checkbox" checked={newFixedActive} onChange={(e) => setNewFixedActive(e.target.checked)} /> 有効
+            </label>
+            <input value={newFixedNote} onChange={(e) => setNewFixedNote(e.target.value)} placeholder="メモ" />
+            <button
+              onClick={() => {
+                void api
+                  .createFixedExpense({
+                    name: newFixedName,
+                    yearMonth: newFixedYearMonth,
+                    categoryId: newFixedCategoryID,
+                    amount: newFixedAmount,
+                    isActive: newFixedActive,
+                    note: newFixedNote,
+                  })
+                  .then(() => refreshAll())
+                  .then(() => {
+                    setNewFixedName("");
+                    setNewFixedYearMonth("");
+                    setNewFixedAmount(0);
+                    setNewFixedNote("");
+                    setNewFixedActive(true);
+                    showNotice("固定支出を追加しました");
+                  })
+                  .catch((e) => showNotice(e.message, true));
+              }}
+            >
+              追加
+            </button>
+          </div>
         </section>
       </main>
 

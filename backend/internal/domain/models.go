@@ -46,3 +46,14 @@ type ImportResult struct {
 type UncategorizedStore struct {
 	StoreName string `json:"storeName"`
 }
+
+type FixedExpense struct {
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	YearMonth  string `json:"yearMonth"`
+	CategoryID int64  `json:"categoryId"`
+	Category   string `json:"category"`
+	Amount     int64  `json:"amount"`
+	IsActive   bool   `json:"isActive"`
+	Note       string `json:"note"`
+}
