@@ -14,6 +14,7 @@ import type {
 type Tab = "transactions" | "summary" | "rules" | "fixed";
 type TransactionSortKey = "useDate" | "storeName" | "category" | "amount" | "appliedRuleId";
 type RuleSortKey = "id" | "matchText" | "category";
+type FixedSortKey = "id" | "name" | "yearMonth" | "category" | "amount";
 type SortDirection = "asc" | "desc";
 
 type RuleDraft = {
@@ -76,6 +77,10 @@ export default function Page() {
 
   const [fixedFilterName, setFixedFilterName] = useState("");
   const [fixedFilterActive, setFixedFilterActive] = useState(true);
+  const [fixedSort, setFixedSort] = useState<{ key: FixedSortKey; direction: SortDirection }>({
+    key: "id",
+    direction: "asc",
+  });
   const [newFixedName, setNewFixedName] = useState("");
   const [newFixedYearMonth, setNewFixedYearMonth] = useState("");
   const [newFixedCategoryID, setNewFixedCategoryID] = useState<number>(0);
@@ -232,6 +237,31 @@ export default function Page() {
 
   const categoryNames = useMemo(() => categories.map((c) => c.name), [categories]);
   const fixedTotal = useMemo(() => fixedExpenses.reduce((sum, row) => sum + row.amount, 0), [fixedExpenses]);
+  const sortedFixedExpenses = useMemo(() => {
+    const list = [...fixedExpenses];
+    list.sort((a, b) => {
+      let result = 0;
+      switch (fixedSort.key) {
+        case "id":
+          result = a.id - b.id;
+          break;
+        case "name":
+          result = a.name.localeCompare(b.name, "ja");
+          break;
+        case "yearMonth":
+          result = a.yearMonth.localeCompare(b.yearMonth);
+          break;
+        case "category":
+          result = a.category.localeCompare(b.category, "ja");
+          break;
+        case "amount":
+          result = a.amount - b.amount;
+          break;
+      }
+      return fixedSort.direction === "asc" ? result : -result;
+    });
+    return list;
+  }, [fixedExpenses, fixedSort]);
   const sortedRules = useMemo(() => {
     const list = [...rules];
     list.sort((a, b) => {
@@ -307,6 +337,21 @@ export default function Page() {
       return ruleSort.direction === "asc" ? " ▲" : " ▼";
     },
     [ruleSort],
+  );
+  const toggleFixedSort = useCallback((key: FixedSortKey) => {
+    setFixedSort((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: "asc" };
+    });
+  }, []);
+  const fixedSortMark = useCallback(
+    (key: FixedSortKey) => {
+      if (fixedSort.key !== key) return "";
+      return fixedSort.direction === "asc" ? " ▲" : " ▼";
+    },
+    [fixedSort],
   );
 
   return (
@@ -719,18 +764,28 @@ export default function Page() {
           <table>
             <thead>
               <tr>
-                <th>ID</th>
-                <th>支出名</th>
-                <th>利用年月</th>
-                <th>カテゴリ</th>
-                <th>金額</th>
+                <th className="sortable" onClick={() => toggleFixedSort("id")}>
+                  ID{fixedSortMark("id")}
+                </th>
+                <th className="sortable" onClick={() => toggleFixedSort("name")}>
+                  支出名{fixedSortMark("name")}
+                </th>
+                <th className="sortable" onClick={() => toggleFixedSort("yearMonth")}>
+                  利用年月{fixedSortMark("yearMonth")}
+                </th>
+                <th className="sortable" onClick={() => toggleFixedSort("category")}>
+                  カテゴリ{fixedSortMark("category")}
+                </th>
+                <th className="sortable" onClick={() => toggleFixedSort("amount")}>
+                  金額{fixedSortMark("amount")}
+                </th>
                 <th>有効</th>
                 <th>メモ</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              {fixedExpenses.map((row) => {
+              {sortedFixedExpenses.map((row) => {
                 const draft = fixedDrafts[row.id];
                 if (!draft) return null;
                 return (
