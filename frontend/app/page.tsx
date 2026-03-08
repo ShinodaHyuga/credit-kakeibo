@@ -13,6 +13,7 @@ import type {
 
 type Tab = "transactions" | "summary" | "rules" | "fixed";
 type TransactionSortKey = "useDate" | "storeName" | "category" | "amount" | "appliedRuleId";
+type RuleSortKey = "id" | "matchText" | "category";
 type SortDirection = "asc" | "desc";
 
 type RuleDraft = {
@@ -62,6 +63,10 @@ export default function Page() {
 
   const [ruleFilterText, setRuleFilterText] = useState("");
   const [ruleFilterActive, setRuleFilterActive] = useState(true);
+  const [ruleSort, setRuleSort] = useState<{ key: RuleSortKey; direction: SortDirection }>({
+    key: "id",
+    direction: "asc",
+  });
 
   const [newMatchText, setNewMatchText] = useState("");
   const [newCategoryId, setNewCategoryId] = useState<number>(0);
@@ -227,6 +232,25 @@ export default function Page() {
 
   const categoryNames = useMemo(() => categories.map((c) => c.name), [categories]);
   const fixedTotal = useMemo(() => fixedExpenses.reduce((sum, row) => sum + row.amount, 0), [fixedExpenses]);
+  const sortedRules = useMemo(() => {
+    const list = [...rules];
+    list.sort((a, b) => {
+      let result = 0;
+      switch (ruleSort.key) {
+        case "id":
+          result = a.id - b.id;
+          break;
+        case "matchText":
+          result = a.matchText.localeCompare(b.matchText, "ja");
+          break;
+        case "category":
+          result = a.categoryName.localeCompare(b.categoryName, "ja");
+          break;
+      }
+      return ruleSort.direction === "asc" ? result : -result;
+    });
+    return list;
+  }, [rules, ruleSort]);
   const sortedTransactions = useMemo(() => {
     const list = [...transactions];
     list.sort((a, b) => {
@@ -268,6 +292,21 @@ export default function Page() {
       return txSort.direction === "asc" ? " ▲" : " ▼";
     },
     [txSort],
+  );
+  const toggleRuleSort = useCallback((key: RuleSortKey) => {
+    setRuleSort((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: "asc" };
+    });
+  }, []);
+  const ruleSortMark = useCallback(
+    (key: RuleSortKey) => {
+      if (ruleSort.key !== key) return "";
+      return ruleSort.direction === "asc" ? " ▲" : " ▼";
+    },
+    [ruleSort],
   );
 
   return (
@@ -464,15 +503,21 @@ export default function Page() {
           <table>
             <thead>
               <tr>
-                <th>ID</th>
-                <th>matchText</th>
-                <th>カテゴリ</th>
+                <th className="sortable" onClick={() => toggleRuleSort("id")}>
+                  ID{ruleSortMark("id")}
+                </th>
+                <th className="sortable" onClick={() => toggleRuleSort("matchText")}>
+                  matchText{ruleSortMark("matchText")}
+                </th>
+                <th className="sortable" onClick={() => toggleRuleSort("category")}>
+                  カテゴリ{ruleSortMark("category")}
+                </th>
                 <th>有効</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              {rules.map((rule) => {
+              {sortedRules.map((rule) => {
                 const draft = ruleDrafts[rule.id];
                 if (!draft) return null;
                 return (
