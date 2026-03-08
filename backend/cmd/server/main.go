@@ -46,17 +46,6 @@ func main() {
 	mux := http.NewServeMux()
 	h.Register(mux)
 
-	webDir := filepath.Join(".", "web")
-	mux.Handle("/app.js", http.FileServer(http.Dir(webDir)))
-	mux.Handle("/app.css", http.FileServer(http.Dir(webDir)))
-	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
-			return
-		}
-		http.ServeFile(w, r, filepath.Join(webDir, "index.html"))
-	}))
-
 	log.Printf("server started: http://localhost%s", *addr)
 	if err := http.ListenAndServe(*addr, mux); err != nil {
 		log.Fatalf("listen: %v", err)
