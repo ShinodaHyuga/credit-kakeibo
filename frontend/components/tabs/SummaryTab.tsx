@@ -25,6 +25,54 @@ type Props = {
   formatMoney: (v: number) => string;
 };
 
+type TrendTooltipEntry = {
+  dataKey?: string | number;
+  name?: string;
+  value?: number | string;
+};
+
+function MonthlyTrendTooltip({
+  active,
+  payload,
+  label,
+  categoryNames,
+  formatMoney,
+}: {
+  active?: boolean;
+  payload?: TrendTooltipEntry[];
+  label?: string;
+  categoryNames: string[];
+  formatMoney: (v: number) => string;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+
+  const valueMap = new Map<string, number>();
+  payload.forEach((item) => {
+    const key = String(item.dataKey ?? item.name ?? "");
+    const value = Number(item.value ?? 0);
+    if (key) valueMap.set(key, value);
+  });
+
+  const income = valueMap.get("income") ?? 0;
+
+  return (
+    <div className="trend-tooltip">
+      <div className="trend-tooltip-head">
+        <span>{label}</span>
+        <span className="income">収入: {formatMoney(income)}円</span>
+      </div>
+      <div className="trend-tooltip-list">
+        {categoryNames.map((name) => (
+          <div key={name} className="trend-tooltip-row">
+            <span>{name}</span>
+            <span>{formatMoney(valueMap.get(name) ?? 0)}円</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function SummaryTab(props: Props) {
   const OTHERS_LABEL = "他カテゴリ";
   const [selectedMonth, setSelectedMonth] = useState("");
@@ -141,7 +189,14 @@ export function SummaryTab(props: Props) {
                   <CartesianGrid strokeDasharray="3 3" stroke="#eadfce" />
                   <XAxis dataKey="yearMonth" />
                   <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
-                  <Tooltip formatter={(value) => `${props.formatMoney(Number(value))}円`} />
+                  <Tooltip
+                    content={
+                      <MonthlyTrendTooltip
+                        categoryNames={props.categoryNames}
+                        formatMoney={props.formatMoney}
+                      />
+                    }
+                  />
                   {props.categoryNames.map((name) => (
                     <Bar
                       key={name}

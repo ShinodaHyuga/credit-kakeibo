@@ -11,17 +11,17 @@ import (
 )
 
 var fixedCategories = []string{
-	"インフラ",
+	"住居費",
+	"食費",
+	"交通費",
+	"医療・美容・衣類",
+	"生活用品",
 	"コンビニ",
 	"サブスク",
-	"投資",
-	"医療・美容・衣類",
 	"娯楽・交際",
-	"交通費",
-	"振込",
-	"食費",
-	"生活用品",
+	"投資",
 	"その他",
+	"振込",
 	"未分類",
 }
 
@@ -120,6 +120,9 @@ func migrate(db *sql.DB) error {
 	if err := ensureFixedExpenseColumns(db); err != nil {
 		return err
 	}
+	if err := ensureCategoryRename(db, "インフラ", "住居費"); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -171,4 +174,47 @@ func seedCategories(db *sql.DB) error {
 		}
 	}
 	return nil
+}
+
+func ensureCategoryRename(db *sql.DB, oldName, newName string) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin rename category tx: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	var oldID int64
+	err = tx.QueryRow(`SELECT id FROM categories WHERE name = ?`, oldName).Scan(&oldID)
+	if err == sql.ErrNoRows {
+		return tx.Commit()
+	}
+	if err != nil {
+		return fmt.Errorf("find old category %s: %w", oldName, err)
+	}
+
+	var newID int64
+	err = tx.QueryRow(`SELECT id FROM categories WHERE name = ?`, newName).Scan(&newID)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("find new category %s: %w", newName, err)
+	}
+
+	if err == sql.ErrNoRows {
+		if _, err := tx.Exec(`UPDATE categories SET name = ? WHERE id = ?`, newName, oldID); err != nil {
+			return fmt.Errorf("rename category %s -> %s: %w", oldName, newName, err)
+		}
+		return tx.Commit()
+	}
+
+	if _, err := tx.Exec(`UPDATE category_match_rules SET category_id = ? WHERE category_id = ?`, newID, oldID); err != nil {
+		return fmt.Errorf("move rules category id %d -> %d: %w", oldID, newID, err)
+	}
+	if _, err := tx.Exec(`UPDATE fixed_expenses SET category_id = ? WHERE category_id = ?`, newID, oldID); err != nil {
+		return fmt.Errorf("move fixed_expenses category id %d -> %d: %w", oldID, newID, err)
+	}
+	if _, err := tx.Exec(`DELETE FROM categories WHERE id = ?`, oldID); err != nil {
+		return fmt.Errorf("delete old category id %d: %w", oldID, err)
+	}
+	return tx.Commit()
 }

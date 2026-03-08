@@ -345,6 +345,42 @@ select:focus {
   border-radius: 999px;
 }
 
+.trend-tooltip {
+  min-width: 220px;
+  max-width: 280px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 252, 246, 0.96);
+  box-shadow: var(--shadow-sm);
+}
+
+.trend-tooltip-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.trend-tooltip-head .income {
+  color: #b45309;
+}
+
+.trend-tooltip-list {
+  display: grid;
+  gap: 2px;
+}
+
+.trend-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+
 .income-line .recharts-curve {
   filter: drop-shadow(0 0 2px rgba(250, 204, 21, 0.95)) drop-shadow(0 0 8px rgba(245, 158, 11, 0.5));
   animation: incomeSparkle 2.6s ease-in-out infinite;
