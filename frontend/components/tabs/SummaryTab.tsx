@@ -110,7 +110,7 @@ export function SummaryTab(props: Props) {
   return (
     <section className="panel active">
       <div className="section-head">
-        <h3>支出集計</h3>
+        <h3>収支集計</h3>
         <span className="badge">{props.summaries.length.toLocaleString("ja-JP")} ヶ月</span>
       </div>
       <div className="controls">
@@ -173,7 +173,7 @@ export function SummaryTab(props: Props) {
           <article className="chart-card chart-s2">
             <div className="chart-head">
               <h4>カテゴリ比率</h4>
-              <p>{selectedMonthValue || "-"} の支出構成</p>
+              <p>{selectedMonthValue || "-"} の支出内訳</p>
             </div>
             <div className="chart-controls">
               <label htmlFor="ratio-month">対象月</label>
@@ -201,7 +201,7 @@ export function SummaryTab(props: Props) {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="chart-empty">この月の支出データがありません</p>
+                <p className="chart-empty">この月の収支データがありません</p>
               )}
             </div>
             {ratioData.length > 0 ? (

@@ -87,7 +87,7 @@ export default function Page() {
       <header className="topbar">
         <div className="title-block">
           <p className="eyebrow">Credit Kakeibo</p>
-          <h1>支出管理ダッシュボード</h1>
+          <h1>収支管理ダッシュボード</h1>
           <p className="subtitle">Next.js UI / Go API / SQLite</p>
         </div>
         <div className="header-actions">
@@ -103,7 +103,7 @@ export default function Page() {
           明細一覧
         </button>
         <button className={`tab ${activeTab === "summary" ? "active" : ""}`} onClick={() => setActiveTab("summary")}>
-          支出
+          収支
         </button>
         <button className={`tab ${activeTab === "rules" ? "active" : ""}`} onClick={() => setActiveTab("rules")}>
           カテゴリ管理

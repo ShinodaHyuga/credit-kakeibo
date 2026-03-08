@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Credit Kakeibo",
-  description: "支出管理アプリ",
+  description: "収支管理アプリ",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
