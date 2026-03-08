@@ -88,7 +88,7 @@ export default function Page() {
         <div className="title-block">
           <p className="eyebrow">Credit Kakeibo</p>
           <h1>収支管理ダッシュボード</h1>
-          <p className="subtitle">Next.js UI / Go API / SQLite</p>
+          <p className="subtitle">マ○フォに毎月金払うのが悔しい人のための家計簿。</p>
         </div>
         <div className="header-actions">
           <button onClick={() => void reloadImport()} disabled={busy}>
