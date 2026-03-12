@@ -1,30 +1,42 @@
-import type { Category, CategoryRule, UncategorizedStore } from "@/types/models";
+import type { Category, ClassificationRule, UncategorizedStore } from "@/types/models";
 import type { RuleDraft, RuleSortKey } from "@/types/ui";
 
 type Props = {
-  rules: CategoryRule[];
-  sortedRules: CategoryRule[];
+  rules: ClassificationRule[];
+  sortedRules: ClassificationRule[];
   ruleDrafts: Record<number, RuleDraft>;
   categories: Category[];
   uncategorizedStores: UncategorizedStore[];
   uncQuickCategory: Record<string, number>;
   ruleFilterText: string;
+  ruleFilterSourceType: string;
   ruleFilterActive: boolean;
+  newSourceType: string;
+  newProviderName: string;
+  newDirection: string;
+  newTransactionType: string;
   newMatchText: string;
   newCategoryId: number;
+  newPriority: number;
   newActive: boolean;
   uncStore: string;
   ruleSortMark: (key: RuleSortKey) => string;
   onToggleRuleSort: (key: RuleSortKey) => void;
   onChangeRuleFilterText: (value: string) => void;
+  onChangeRuleFilterSourceType: (value: string) => void;
   onChangeRuleFilterActive: (value: boolean) => void;
   onSearchRules: () => void;
   onClearRules: () => void;
   onChangeRuleDraft: (id: number, patch: Partial<RuleDraft>) => void;
   onSaveRule: (id: number) => void;
   onDeleteRule: (id: number) => void;
+  onChangeNewSourceType: (value: string) => void;
+  onChangeNewProviderName: (value: string) => void;
+  onChangeNewDirection: (value: string) => void;
+  onChangeNewTransactionType: (value: string) => void;
   onChangeNewMatchText: (value: string) => void;
   onChangeNewCategoryId: (value: number) => void;
+  onChangeNewPriority: (value: number) => void;
   onChangeNewActive: (value: boolean) => void;
   onCreateRule: () => void;
   onChangeUncStore: (value: string) => void;
@@ -43,6 +55,7 @@ export function RulesTab(props: Props) {
       </div>
       <div className="controls">
         <input value={props.ruleFilterText} onChange={(e) => props.onChangeRuleFilterText(e.target.value)} placeholder="matchText検索" />
+        <input value={props.ruleFilterSourceType} onChange={(e) => props.onChangeRuleFilterSourceType(e.target.value)} placeholder="sourceType検索" />
         <label>
           <input
             type="checkbox"
@@ -64,6 +77,9 @@ export function RulesTab(props: Props) {
               <th className="sortable" onClick={() => props.onToggleRuleSort("id")}>
                 ID{props.ruleSortMark("id")}
               </th>
+              <th className="sortable" onClick={() => props.onToggleRuleSort("sourceType")}>
+                条件{props.ruleSortMark("sourceType")}
+              </th>
               <th className="sortable" onClick={() => props.onToggleRuleSort("matchText")}>
                 matchText{props.ruleSortMark("matchText")}
               </th>
@@ -82,6 +98,18 @@ export function RulesTab(props: Props) {
                 <tr key={rule.id}>
                   <td>{rule.id}</td>
                   <td>
+                    <div className="stack">
+                      <input value={draft.sourceType} onChange={(e) => props.onChangeRuleDraft(rule.id, { sourceType: e.target.value })} placeholder="sourceType" />
+                      <input value={draft.providerName} onChange={(e) => props.onChangeRuleDraft(rule.id, { providerName: e.target.value })} placeholder="providerName" />
+                      <input value={draft.direction} onChange={(e) => props.onChangeRuleDraft(rule.id, { direction: e.target.value })} placeholder="direction" />
+                      <input
+                        value={draft.transactionType}
+                        onChange={(e) => props.onChangeRuleDraft(rule.id, { transactionType: e.target.value })}
+                        placeholder="transactionType"
+                      />
+                    </div>
+                  </td>
+                  <td>
                     <input value={draft.matchText} onChange={(e) => props.onChangeRuleDraft(rule.id, { matchText: e.target.value })} />
                   </td>
                   <td>
@@ -97,6 +125,13 @@ export function RulesTab(props: Props) {
                     </select>
                   </td>
                   <td>
+                    <input
+                      type="number"
+                      value={draft.priority}
+                      onChange={(e) => props.onChangeRuleDraft(rule.id, { priority: Number(e.target.value) || 100 })}
+                      min={1}
+                      style={{ width: 88 }}
+                    />
                     <input
                       type="checkbox"
                       checked={draft.isActive}
@@ -120,6 +155,10 @@ export function RulesTab(props: Props) {
         <h3>新規ルール追加</h3>
       </div>
       <div className="controls">
+        <input value={props.newSourceType} onChange={(e) => props.onChangeNewSourceType(e.target.value)} placeholder="sourceType" />
+        <input value={props.newProviderName} onChange={(e) => props.onChangeNewProviderName(e.target.value)} placeholder="providerName" />
+        <input value={props.newDirection} onChange={(e) => props.onChangeNewDirection(e.target.value)} placeholder="direction" />
+        <input value={props.newTransactionType} onChange={(e) => props.onChangeNewTransactionType(e.target.value)} placeholder="transactionType" />
         <input value={props.newMatchText} onChange={(e) => props.onChangeNewMatchText(e.target.value)} placeholder="matchText" />
         <select value={props.newCategoryId} onChange={(e) => props.onChangeNewCategoryId(Number(e.target.value))}>
           {props.categories.map((c) => (
@@ -128,6 +167,13 @@ export function RulesTab(props: Props) {
             </option>
           ))}
         </select>
+        <input
+          type="number"
+          value={props.newPriority}
+          onChange={(e) => props.onChangeNewPriority(Number(e.target.value) || 100)}
+          min={1}
+          placeholder="priority"
+        />
         <label>
           <input type="checkbox" checked={props.newActive} onChange={(e) => props.onChangeNewActive(e.target.checked)} /> 有効
         </label>

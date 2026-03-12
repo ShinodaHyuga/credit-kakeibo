@@ -57,6 +57,7 @@ export function TransactionsTab(props: Props) {
               <th className="sortable" onClick={() => props.onToggleSort("useDate")}>
                 利用日{props.sortMark("useDate")}
               </th>
+              <th>元データ</th>
               <th className="sortable" onClick={() => props.onToggleSort("storeName")}>
                 利用店名{props.sortMark("storeName")}
               </th>
@@ -76,6 +77,7 @@ export function TransactionsTab(props: Props) {
             {props.sortedTransactions.map((tx) => (
               <tr key={tx.id}>
                 <td>{tx.useDate}</td>
+                <td>{tx.providerName} / {tx.transactionType}</td>
                 <td>{tx.storeName}</td>
                 <td className={tx.category === "未分類" ? "uncategorized" : ""}>{tx.category}</td>
                 <td className="num">{props.formatMoney(tx.amount)}</td>
@@ -91,7 +93,7 @@ export function TransactionsTab(props: Props) {
                       </option>
                     ))}
                   </select>
-                  <button onClick={() => props.onCreateRule(tx)}>作成</button>
+                  <button onClick={() => props.onCreateRule(tx)}>保存</button>
                 </td>
               </tr>
             ))}

@@ -220,6 +220,12 @@ button:disabled {
   margin: 6px 0 14px;
 }
 
+.stack {
+  display: grid;
+  gap: 8px;
+  min-width: 180px;
+}
+
 label {
   display: inline-flex;
   align-items: center;

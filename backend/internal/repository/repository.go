@@ -88,13 +88,44 @@ LEFT JOIN category_match_rules r ON r.id = (
 LEFT JOIN categories c ON c.id = r.category_id`
 }
 
-func (r *Repo) Transactions(ctx context.Context, f TransactionFilter) ([]domain.Transaction, error) {
-	base := `
-SELECT t.id, t.use_date, t.year_month, t.store_name,
-       COALESCE(c_active.name, c_any.name, '未分類') AS category,
-       t.amount,
-       COALESCE(r_active.id, r_any.id) AS applied_rule_id
-FROM transactions t
+func classificationRulePredicate(alias string, activeOnly bool) string {
+	activeClause := ""
+	if activeOnly {
+		activeClause = fmt.Sprintf(" AND %s.is_active = 1", alias)
+	}
+	return fmt.Sprintf(`1=1%s
+	  AND (%s.source_type = '' OR %s.source_type = t.source_type)
+	  AND (%s.provider_name = '' OR %s.provider_name = t.provider_name)
+	  AND (%s.direction = '' OR %s.direction = t.direction)
+	  AND (%s.transaction_type = '' OR %s.transaction_type = t.transaction_type)
+	  AND (%s.counterparty_match = '' OR instr(t.counterparty_name, %s.counterparty_match) > 0 OR instr(t.store_name, %s.counterparty_match) > 0)
+	  AND (%s.merchant_match = '' OR instr(t.merchant_name, %s.merchant_match) > 0 OR instr(t.store_name, %s.merchant_match) > 0)
+	  AND (%s.description_match = '' OR instr(t.description_raw, %s.description_match) > 0 OR instr(t.store_name, %s.description_match) > 0)
+	  AND (%s.method_match = '' OR instr(t.method, %s.method_match) > 0)`,
+		activeClause,
+		alias, alias,
+		alias, alias,
+		alias, alias,
+		alias, alias,
+		alias, alias, alias,
+		alias, alias, alias,
+		alias, alias, alias,
+		alias, alias,
+	)
+}
+
+func categoryResolutionJoinClause() string {
+	return `
+LEFT JOIN transaction_category_overrides o ON o.transaction_id = t.id
+LEFT JOIN categories c_override ON c_override.id = o.category_id
+LEFT JOIN classification_rules cr_active ON cr_active.id = (
+	SELECT cr2.id
+	FROM classification_rules cr2
+	WHERE ` + classificationRulePredicate("cr2", true) + `
+	ORDER BY cr2.priority ASC, length(cr2.counterparty_match || cr2.merchant_match || cr2.description_match || cr2.method_match) DESC, cr2.id ASC
+	LIMIT 1
+)
+LEFT JOIN categories c_cr_active ON c_cr_active.id = cr_active.category_id
 LEFT JOIN category_match_rules r_active ON r_active.id = (
 	SELECT r2.id
 	FROM category_match_rules r2
@@ -104,6 +135,14 @@ LEFT JOIN category_match_rules r_active ON r_active.id = (
 	LIMIT 1
 )
 LEFT JOIN categories c_active ON c_active.id = r_active.category_id
+LEFT JOIN classification_rules cr_any ON cr_any.id = (
+	SELECT cr3.id
+	FROM classification_rules cr3
+	WHERE ` + classificationRulePredicate("cr3", false) + `
+	ORDER BY cr3.priority ASC, length(cr3.counterparty_match || cr3.merchant_match || cr3.description_match || cr3.method_match) DESC, cr3.id ASC
+	LIMIT 1
+)
+LEFT JOIN categories c_cr_any ON c_cr_any.id = cr_any.category_id
 LEFT JOIN category_match_rules r_any ON r_any.id = (
 	SELECT r3.id
 	FROM category_match_rules r3
@@ -111,7 +150,16 @@ LEFT JOIN category_match_rules r_any ON r_any.id = (
 	ORDER BY length(r3.match_text) DESC, r3.id ASC
 	LIMIT 1
 )
-LEFT JOIN categories c_any ON c_any.id = r_any.category_id
+LEFT JOIN categories c_any ON c_any.id = r_any.category_id`
+}
+
+func (r *Repo) Transactions(ctx context.Context, f TransactionFilter) ([]domain.Transaction, error) {
+	base := `
+SELECT t.id, t.use_date, t.year_month, t.source_type, t.provider_name, t.direction, t.transaction_type, t.store_name,
+       COALESCE(c_override.name, c_cr_active.name, c_active.name, c_cr_any.name, c_any.name, '未分類') AS category,
+       t.amount,
+       COALESCE(cr_active.id, r_active.id, cr_any.id, r_any.id) AS applied_rule_id
+FROM transactions t` + categoryResolutionJoinClause() + `
 WHERE 1=1`
 
 	args := make([]any, 0, 10)
@@ -122,7 +170,7 @@ WHERE 1=1`
 		}
 	}
 	if f.Uncategorized {
-		base += " AND r_any.id IS NULL"
+		base += " AND o.transaction_id IS NULL AND cr_any.id IS NULL AND r_any.id IS NULL"
 	}
 	if f.StoreName != "" {
 		base += " AND t.store_name LIKE ?"
@@ -140,7 +188,7 @@ WHERE 1=1`
 	for rows.Next() {
 		var t domain.Transaction
 		var ruleID sql.NullInt64
-		if err := rows.Scan(&t.ID, &t.UseDate, &t.YearMonth, &t.StoreName, &t.Category, &t.Amount, &ruleID); err != nil {
+		if err := rows.Scan(&t.ID, &t.UseDate, &t.YearMonth, &t.SourceType, &t.ProviderName, &t.Direction, &t.TransactionType, &t.StoreName, &t.Category, &t.Amount, &ruleID); err != nil {
 			return nil, err
 		}
 		if ruleID.Valid {
@@ -155,8 +203,34 @@ func (r *Repo) MonthlySummary(ctx context.Context, months []string, from, to str
 	q := `
 SELECT base.year_month, base.category, SUM(base.amount)
 FROM (
-  SELECT t.year_month AS year_month, COALESCE(c.name, '未分類') AS category, t.amount AS amount
-  FROM transactions t` + ruleJoinClause() + `
+  SELECT t.year_month AS year_month, COALESCE(c_override.name, c_cr_active.name, c.name, c_cr_any.name, c_any.name, '未分類') AS category, t.amount AS amount
+  FROM transactions t
+  LEFT JOIN transaction_category_overrides o ON o.transaction_id = t.id
+  LEFT JOIN categories c_override ON c_override.id = o.category_id
+  LEFT JOIN classification_rules cr_active ON cr_active.id = (
+    SELECT cr2.id
+    FROM classification_rules cr2
+    WHERE ` + classificationRulePredicate("cr2", true) + `
+    ORDER BY cr2.priority ASC, length(cr2.counterparty_match || cr2.merchant_match || cr2.description_match || cr2.method_match) DESC, cr2.id ASC
+    LIMIT 1
+  )
+  LEFT JOIN categories c_cr_active ON c_cr_active.id = cr_active.category_id` + ruleJoinClause() + `
+  LEFT JOIN classification_rules cr_any ON cr_any.id = (
+    SELECT cr3.id
+    FROM classification_rules cr3
+    WHERE ` + classificationRulePredicate("cr3", false) + `
+    ORDER BY cr3.priority ASC, length(cr3.counterparty_match || cr3.merchant_match || cr3.description_match || cr3.method_match) DESC, cr3.id ASC
+    LIMIT 1
+  )
+  LEFT JOIN categories c_cr_any ON c_cr_any.id = cr_any.category_id
+  LEFT JOIN category_match_rules r_any ON r_any.id = (
+    SELECT r3.id
+    FROM category_match_rules r3
+    WHERE instr(t.store_name, r3.match_text) > 0
+    ORDER BY length(r3.match_text) DESC, r3.id ASC
+    LIMIT 1
+  )
+  LEFT JOIN categories c_any ON c_any.id = r_any.category_id
   WHERE NOT EXISTS (
     SELECT 1 FROM category_match_rules r0
     WHERE r0.is_active = 0
@@ -260,6 +334,154 @@ WHERE 1=1`
 	return items, rows.Err()
 }
 
+type ClassificationRuleFilter struct {
+	CategoryID   *int64
+	MatchText    string
+	SourceType   string
+	ProviderName string
+	Active       *bool
+}
+
+func (r *Repo) ClassificationRules(ctx context.Context, f ClassificationRuleFilter) ([]domain.ClassificationRule, error) {
+	q := `
+SELECT r.id, r.source_type, r.provider_name, r.direction, r.transaction_type,
+       r.description_match, r.category_id, c.name, r.priority, r.is_active
+FROM classification_rules r
+JOIN categories c ON c.id = r.category_id
+WHERE 1=1`
+	args := make([]any, 0, 6)
+
+	if f.CategoryID != nil {
+		q += " AND r.category_id = ?"
+		args = append(args, *f.CategoryID)
+	}
+	if f.MatchText != "" {
+		q += " AND r.description_match LIKE ?"
+		args = append(args, "%"+f.MatchText+"%")
+	}
+	if f.SourceType != "" {
+		q += " AND r.source_type = ?"
+		args = append(args, f.SourceType)
+	}
+	if f.ProviderName != "" {
+		q += " AND r.provider_name LIKE ?"
+		args = append(args, "%"+f.ProviderName+"%")
+	}
+	if f.Active != nil {
+		q += " AND r.is_active = ?"
+		if *f.Active {
+			args = append(args, 1)
+		} else {
+			args = append(args, 0)
+		}
+	}
+
+	q += " ORDER BY r.priority ASC, length(r.description_match) DESC, r.id ASC"
+	rows, err := r.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]domain.ClassificationRule, 0, 128)
+	for rows.Next() {
+		var item domain.ClassificationRule
+		var active int
+		if err := rows.Scan(
+			&item.ID,
+			&item.SourceType,
+			&item.ProviderName,
+			&item.Direction,
+			&item.TransactionType,
+			&item.MatchText,
+			&item.CategoryID,
+			&item.CategoryName,
+			&item.Priority,
+			&active,
+		); err != nil {
+			return nil, err
+		}
+		item.IsActive = active == 1
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (r *Repo) CreateClassificationRule(ctx context.Context, rule domain.ClassificationRule) error {
+	active := 0
+	if rule.IsActive {
+		active = 1
+	}
+	now := time.Now().Format(time.RFC3339)
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO classification_rules(
+			rule_name, source_type, provider_name, direction, transaction_type,
+			counterparty_match, merchant_match, description_match, method_match,
+			category_id, priority, is_active, created_at, updated_at
+		) VALUES('', ?, ?, ?, ?, '', '', ?, '', ?, ?, ?, ?, ?)`,
+		rule.SourceType,
+		rule.ProviderName,
+		rule.Direction,
+		rule.TransactionType,
+		rule.MatchText,
+		rule.CategoryID,
+		rule.Priority,
+		active,
+		now,
+		now,
+	)
+	return err
+}
+
+func (r *Repo) UpdateClassificationRule(ctx context.Context, id int64, rule domain.ClassificationRule) error {
+	active := 0
+	if rule.IsActive {
+		active = 1
+	}
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE classification_rules
+		 SET source_type = ?, provider_name = ?, direction = ?, transaction_type = ?,
+		     description_match = ?, category_id = ?, priority = ?, is_active = ?, updated_at = ?
+		 WHERE id = ?`,
+		rule.SourceType,
+		rule.ProviderName,
+		rule.Direction,
+		rule.TransactionType,
+		rule.MatchText,
+		rule.CategoryID,
+		rule.Priority,
+		active,
+		time.Now().Format(time.RFC3339),
+		id,
+	)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (r *Repo) DeleteClassificationRule(ctx context.Context, id int64) error {
+	res, err := r.db.ExecContext(ctx, `DELETE FROM classification_rules WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 func (r *Repo) CreateCategoryRule(ctx context.Context, matchText string, categoryID int64, isActive bool) error {
 	active := 0
 	if isActive {
@@ -321,10 +543,20 @@ func (r *Repo) UncategorizedStores(ctx context.Context, storeName, sourceFile st
 	q := `
 SELECT DISTINCT t.store_name
 FROM transactions t
+LEFT JOIN transaction_category_overrides o ON o.transaction_id = t.id
+LEFT JOIN classification_rules cr_any ON cr_any.id = (
+	SELECT cr3.id
+	FROM classification_rules cr3
+	WHERE ` + classificationRulePredicate("cr3", false) + `
+	ORDER BY cr3.priority ASC, length(cr3.counterparty_match || cr3.merchant_match || cr3.description_match || cr3.method_match) DESC, cr3.id ASC
+	LIMIT 1
+)
 WHERE 1=1`
 	args := make([]any, 0, 2)
 	if !includeCategorized {
 		q += `
+ AND o.transaction_id IS NULL
+ AND cr_any.id IS NULL
  AND NOT EXISTS (
 	SELECT 1 FROM category_match_rules r
 	WHERE instr(t.store_name, r.match_text) > 0
@@ -355,6 +587,19 @@ WHERE 1=1`
 		items = append(items, item)
 	}
 	return items, rows.Err()
+}
+
+func (r *Repo) SetTransactionCategoryOverride(ctx context.Context, transactionID, categoryID int64) error {
+	now := time.Now().Format(time.RFC3339)
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO transaction_category_overrides(transaction_id, category_id, note, created_at, updated_at)
+		 VALUES(?, ?, '', ?, ?)
+		 ON CONFLICT(transaction_id) DO UPDATE SET
+		   category_id = excluded.category_id,
+		   updated_at = excluded.updated_at`,
+		transactionID, categoryID, now, now,
+	)
+	return err
 }
 
 type FixedExpenseFilter struct {
@@ -585,19 +830,48 @@ func (r *Repo) InsertTransactions(ctx context.Context, sourceFile string, record
 	}()
 
 	stmt, err := tx.PrepareContext(ctx,
-		`INSERT OR IGNORE INTO transactions(use_date, year_month, store_name, amount, source_file, row_hash, created_at)
-		 VALUES(?, ?, ?, ?, ?, ?, ?)`)
+		`INSERT OR IGNORE INTO transactions(
+			source_id, source_type, provider_name, account_name, occurred_at,
+			use_date, year_month, direction, transaction_type,
+			amount_in, amount_out, store_name, counterparty_name, merchant_name,
+			description_raw, method, external_id, balance_after,
+			amount, source_file, row_hash, created_at
+		) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
 	now := time.Now().Format(time.RFC3339)
+	sourceIDs := map[string]int64{}
 	for _, rec := range records {
+		sourceID, err := ensureSourceID(ctx, tx, sourceIDs, rec.SourceType, rec.ProviderName, rec.AccountName, now)
+		if err != nil {
+			return err
+		}
+		var balanceAfter any
+		if rec.BalanceAfter != nil {
+			balanceAfter = *rec.BalanceAfter
+		}
 		if _, err = stmt.ExecContext(ctx,
+			sourceID,
+			rec.SourceType,
+			rec.ProviderName,
+			rec.AccountName,
+			rec.OccurredAt,
 			rec.UseDate,
 			rec.YearMonth,
+			rec.Direction,
+			rec.TransactionType,
+			rec.AmountIn,
+			rec.AmountOut,
 			rec.StoreName,
+			rec.CounterpartyName,
+			rec.MerchantName,
+			rec.DescriptionRaw,
+			rec.Method,
+			rec.ExternalID,
+			balanceAfter,
 			rec.Amount,
 			sourceFile,
 			rec.RowHash,
@@ -610,6 +884,33 @@ func (r *Repo) InsertTransactions(ctx context.Context, sourceFile string, record
 		return err
 	}
 	return nil
+}
+
+func ensureSourceID(ctx context.Context, tx *sql.Tx, cache map[string]int64, sourceType, providerName, accountName, now string) (int64, error) {
+	key := sourceType + "\x00" + providerName + "\x00" + accountName
+	if id, ok := cache[key]; ok {
+		return id, nil
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO transaction_sources(source_type, provider_name, account_name, is_active, created_at, updated_at)
+		 VALUES(?, ?, ?, 1, ?, ?)
+		 ON CONFLICT(source_type, provider_name, account_name)
+		 DO UPDATE SET updated_at = excluded.updated_at`,
+		sourceType, providerName, accountName, now, now,
+	); err != nil {
+		return 0, err
+	}
+
+	var id int64
+	if err := tx.QueryRowContext(ctx,
+		`SELECT id FROM transaction_sources WHERE source_type = ? AND provider_name = ? AND account_name = ?`,
+		sourceType, providerName, accountName,
+	).Scan(&id); err != nil {
+		return 0, err
+	}
+	cache[key] = id
+	return id, nil
 }
 
 func (r *Repo) ImportStatuses(ctx context.Context) ([]domain.ImportStatus, error) {

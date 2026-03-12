@@ -84,9 +84,9 @@ export function useTransactionsTab(categories: Category[], showNotice: ShowNotic
 
   const onCreateRule = useCallback((tx: Transaction) => {
     void api
-      .createCategoryRule({ matchText: tx.storeName, categoryId: txQuickCategory[tx.id] ?? categories[0]?.id ?? 0, isActive: true })
+      .setTransactionCategory({ transactionId: tx.id, categoryId: txQuickCategory[tx.id] ?? categories[0]?.id ?? 0 })
       .then(() => refreshAll())
-      .then(() => showNotice(`ルール作成: ${tx.storeName}`))
+      .then(() => showNotice(`カテゴリ保存: ${tx.storeName}`))
       .catch((e) => showNotice((e as Error).message, true));
   }, [txQuickCategory, categories, refreshAll, showNotice]);
 

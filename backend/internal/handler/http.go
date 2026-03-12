@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"credit-kakeibo/backend/internal/domain"
 	"credit-kakeibo/backend/internal/service"
 )
 
@@ -19,8 +20,11 @@ func New(svc *service.Service) *Handler {
 
 func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/transactions", h.handleTransactions)
+	mux.HandleFunc("/api/transaction-categories", h.handleTransactionCategories)
 	mux.HandleFunc("/api/summary/monthly", h.handleSummaryMonthly)
 	mux.HandleFunc("/api/categories", h.handleCategories)
+	mux.HandleFunc("/api/classification-rules", h.handleClassificationRules)
+	mux.HandleFunc("/api/classification-rules/", h.handleClassificationRuleByID)
 	mux.HandleFunc("/api/category-rules", h.handleCategoryRules)
 	mux.HandleFunc("/api/category-rules/", h.handleCategoryRuleByID)
 	mux.HandleFunc("/api/uncategorized-stores", h.handleUncategorizedStores)
@@ -30,6 +34,30 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/incomes/", h.handleIncomeByID)
 	mux.HandleFunc("/api/import/reload", h.handleImportReload)
 	mux.HandleFunc("/api/import/status", h.handleImportStatus)
+}
+
+func (h *Handler) handleTransactionCategories(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "bad_request", "method not allowed")
+		return
+	}
+	var req struct {
+		TransactionID int64 `json:"transactionId"`
+		CategoryID    int64 `json:"categoryId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid json")
+		return
+	}
+	if req.TransactionID <= 0 {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid transactionId")
+		return
+	}
+	if err := h.svc.SetTransactionCategoryOverride(r.Context(), req.TransactionID, req.CategoryID); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+	writeData(w, http.StatusOK, map[string]string{"message": "saved"})
 }
 
 func (h *Handler) handleTransactions(w http.ResponseWriter, r *http.Request) {
@@ -73,6 +101,135 @@ func (h *Handler) handleCategories(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeData(w, http.StatusOK, items)
+}
+
+func (h *Handler) handleClassificationRules(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		h.handleClassificationRulesGet(w, r)
+	case http.MethodPost:
+		h.handleClassificationRulesPost(w, r)
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "bad_request", "method not allowed")
+	}
+}
+
+func (h *Handler) handleClassificationRulesGet(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	var categoryID *int64
+	if raw := strings.TrimSpace(q.Get("categoryId")); raw != "" {
+		id, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "bad_request", "invalid categoryId")
+			return
+		}
+		categoryID = &id
+	}
+	var active *bool
+	if raw := strings.TrimSpace(q.Get("active")); raw != "" {
+		v := raw == "true"
+		active = &v
+	}
+
+	items, err := h.svc.ClassificationRules(
+		r.Context(),
+		categoryID,
+		q.Get("matchText"),
+		q.Get("sourceType"),
+		q.Get("providerName"),
+		active,
+	)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal_error", err.Error())
+		return
+	}
+	writeData(w, http.StatusOK, items)
+}
+
+func (h *Handler) handleClassificationRulesPost(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		SourceType      string `json:"sourceType"`
+		ProviderName    string `json:"providerName"`
+		Direction       string `json:"direction"`
+		TransactionType string `json:"transactionType"`
+		MatchText       string `json:"matchText"`
+		CategoryID      int64  `json:"categoryId"`
+		Priority        int    `json:"priority"`
+		IsActive        *bool  `json:"isActive"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid json")
+		return
+	}
+	active := true
+	if req.IsActive != nil {
+		active = *req.IsActive
+	}
+	if err := h.svc.CreateClassificationRule(r.Context(), toClassificationRule(req.SourceType, req.ProviderName, req.Direction, req.TransactionType, req.MatchText, req.CategoryID, req.Priority, active)); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+	writeData(w, http.StatusOK, map[string]string{"message": "created"})
+}
+
+func (h *Handler) handleClassificationRuleByID(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(strings.TrimPrefix(r.URL.Path, "/api/classification-rules/"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid ruleId")
+		return
+	}
+
+	switch r.Method {
+	case http.MethodPut:
+		var req struct {
+			SourceType      string `json:"sourceType"`
+			ProviderName    string `json:"providerName"`
+			Direction       string `json:"direction"`
+			TransactionType string `json:"transactionType"`
+			MatchText       string `json:"matchText"`
+			CategoryID      int64  `json:"categoryId"`
+			Priority        int    `json:"priority"`
+			IsActive        bool   `json:"isActive"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, http.StatusBadRequest, "bad_request", "invalid json")
+			return
+		}
+		if err := h.svc.UpdateClassificationRule(r.Context(), id, toClassificationRule(req.SourceType, req.ProviderName, req.Direction, req.TransactionType, req.MatchText, req.CategoryID, req.Priority, req.IsActive)); err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				writeError(w, http.StatusNotFound, "not_found", err.Error())
+				return
+			}
+			writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+			return
+		}
+		writeData(w, http.StatusOK, map[string]string{"message": "updated"})
+	case http.MethodDelete:
+		if err := h.svc.DeleteClassificationRule(r.Context(), id); err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				writeError(w, http.StatusNotFound, "not_found", err.Error())
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "internal_error", err.Error())
+			return
+		}
+		writeData(w, http.StatusOK, map[string]string{"message": "deleted"})
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "bad_request", "method not allowed")
+	}
+}
+
+func toClassificationRule(sourceType, providerName, direction, transactionType, matchText string, categoryID int64, priority int, active bool) domain.ClassificationRule {
+	return domain.ClassificationRule{
+		SourceType:      sourceType,
+		ProviderName:    providerName,
+		Direction:       direction,
+		TransactionType: transactionType,
+		MatchText:       matchText,
+		CategoryID:      categoryID,
+		Priority:        priority,
+		IsActive:        active,
+	}
 }
 
 func (h *Handler) handleCategoryRules(w http.ResponseWriter, r *http.Request) {

@@ -7,13 +7,17 @@ type Category struct {
 }
 
 type Transaction struct {
-	ID            int64  `json:"id"`
-	UseDate       string `json:"useDate"`
-	YearMonth     string `json:"yearMonth"`
-	StoreName     string `json:"storeName"`
-	Category      string `json:"category"`
-	Amount        int64  `json:"amount"`
-	AppliedRuleID *int64 `json:"appliedRuleId,omitempty"`
+	ID              int64  `json:"id"`
+	UseDate         string `json:"useDate"`
+	YearMonth       string `json:"yearMonth"`
+	SourceType      string `json:"sourceType"`
+	ProviderName    string `json:"providerName"`
+	Direction       string `json:"direction"`
+	TransactionType string `json:"transactionType"`
+	StoreName       string `json:"storeName"`
+	Category        string `json:"category"`
+	Amount          int64  `json:"amount"`
+	AppliedRuleID   *int64 `json:"appliedRuleId,omitempty"`
 }
 
 type CategoryRule struct {
@@ -22,6 +26,19 @@ type CategoryRule struct {
 	CategoryID   int64  `json:"categoryId"`
 	CategoryName string `json:"categoryName"`
 	IsActive     bool   `json:"isActive"`
+}
+
+type ClassificationRule struct {
+	ID              int64  `json:"id"`
+	SourceType      string `json:"sourceType"`
+	ProviderName    string `json:"providerName"`
+	Direction       string `json:"direction"`
+	TransactionType string `json:"transactionType"`
+	MatchText       string `json:"matchText"`
+	CategoryID      int64  `json:"categoryId"`
+	CategoryName    string `json:"categoryName"`
+	Priority        int    `json:"priority"`
+	IsActive        bool   `json:"isActive"`
 }
 
 type MonthlySummary struct {

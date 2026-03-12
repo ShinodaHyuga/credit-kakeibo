@@ -8,6 +8,10 @@ export type Transaction = {
   id: number;
   useDate: string;
   yearMonth: string;
+  sourceType: string;
+  providerName: string;
+  direction: string;
+  transactionType: string;
   storeName: string;
   category: string;
   amount: number;
@@ -25,6 +29,19 @@ export type CategoryRule = {
   matchText: string;
   categoryId: number;
   categoryName: string;
+  isActive: boolean;
+};
+
+export type ClassificationRule = {
+  id: number;
+  sourceType: string;
+  providerName: string;
+  direction: string;
+  transactionType: string;
+  matchText: string;
+  categoryId: number;
+  categoryName: string;
+  priority: number;
   isActive: boolean;
 };
 

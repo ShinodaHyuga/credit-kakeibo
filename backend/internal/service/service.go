@@ -106,6 +106,78 @@ func (s *Service) CategoryRules(ctx context.Context, categoryID *int64, matchTex
 	})
 }
 
+func (s *Service) ClassificationRules(ctx context.Context, categoryID *int64, matchText, sourceType, providerName string, active *bool) ([]domain.ClassificationRule, error) {
+	return s.repo.ClassificationRules(ctx, repository.ClassificationRuleFilter{
+		CategoryID:   categoryID,
+		MatchText:    strings.TrimSpace(matchText),
+		SourceType:   strings.TrimSpace(sourceType),
+		ProviderName: strings.TrimSpace(providerName),
+		Active:       active,
+	})
+}
+
+func (s *Service) CreateClassificationRule(ctx context.Context, rule domain.ClassificationRule) error {
+	if strings.TrimSpace(rule.MatchText) == "" {
+		return fmt.Errorf("matchText is required")
+	}
+	if rule.Priority <= 0 {
+		rule.Priority = 100
+	}
+	exists, err := s.repo.CategoryExists(ctx, rule.CategoryID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("category not found")
+	}
+	rule.MatchText = strings.TrimSpace(rule.MatchText)
+	rule.SourceType = strings.TrimSpace(rule.SourceType)
+	rule.ProviderName = strings.TrimSpace(rule.ProviderName)
+	rule.Direction = strings.TrimSpace(rule.Direction)
+	rule.TransactionType = strings.TrimSpace(rule.TransactionType)
+	return s.repo.CreateClassificationRule(ctx, rule)
+}
+
+func (s *Service) UpdateClassificationRule(ctx context.Context, id int64, rule domain.ClassificationRule) error {
+	if strings.TrimSpace(rule.MatchText) == "" {
+		return fmt.Errorf("matchText is required")
+	}
+	if rule.Priority <= 0 {
+		rule.Priority = 100
+	}
+	exists, err := s.repo.CategoryExists(ctx, rule.CategoryID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("category not found")
+	}
+	rule.MatchText = strings.TrimSpace(rule.MatchText)
+	rule.SourceType = strings.TrimSpace(rule.SourceType)
+	rule.ProviderName = strings.TrimSpace(rule.ProviderName)
+	rule.Direction = strings.TrimSpace(rule.Direction)
+	rule.TransactionType = strings.TrimSpace(rule.TransactionType)
+	err = s.repo.UpdateClassificationRule(ctx, id, rule)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("classification rule not found")
+		}
+		return err
+	}
+	return nil
+}
+
+func (s *Service) DeleteClassificationRule(ctx context.Context, id int64) error {
+	err := s.repo.DeleteClassificationRule(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("classification rule not found")
+		}
+		return err
+	}
+	return nil
+}
+
 func (s *Service) CreateCategoryRule(ctx context.Context, matchText string, categoryID int64, isActive bool) error {
 	if strings.TrimSpace(matchText) == "" {
 		return fmt.Errorf("matchText is required")
@@ -150,6 +222,17 @@ func (s *Service) DeleteCategoryRule(ctx context.Context, id int64) error {
 		return err
 	}
 	return nil
+}
+
+func (s *Service) SetTransactionCategoryOverride(ctx context.Context, transactionID, categoryID int64) error {
+	exists, err := s.repo.CategoryExists(ctx, categoryID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("category not found")
+	}
+	return s.repo.SetTransactionCategoryOverride(ctx, transactionID, categoryID)
 }
 
 func (s *Service) UncategorizedStores(ctx context.Context, storeName, sourceFile string, includeCategorized bool) ([]domain.UncategorizedStore, error) {

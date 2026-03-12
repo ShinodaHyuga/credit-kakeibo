@@ -1,6 +1,7 @@
 import type {
   Category,
   CategoryRule,
+  ClassificationRule,
   FixedExpense,
   ImportResult,
   MonthlySummary,
@@ -29,7 +30,48 @@ export const api = {
   categories: () => request<Category[]>("/api/categories"),
   transactions: (q: URLSearchParams) => request<Transaction[]>(`/api/transactions?${q.toString()}`),
   summaryMonthly: (q: URLSearchParams) => request<MonthlySummary[]>(`/api/summary/monthly?${q.toString()}`),
+  classificationRules: (q: URLSearchParams) => request<ClassificationRule[]>(`/api/classification-rules?${q.toString()}`),
+  createClassificationRule: (payload: {
+    sourceType: string;
+    providerName: string;
+    direction: string;
+    transactionType: string;
+    matchText: string;
+    categoryId: number;
+    priority: number;
+    isActive: boolean;
+  }) =>
+    request<{ message: string }>("/api/classification-rules", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateClassificationRule: (
+    id: number,
+    payload: {
+      sourceType: string;
+      providerName: string;
+      direction: string;
+      transactionType: string;
+      matchText: string;
+      categoryId: number;
+      priority: number;
+      isActive: boolean;
+    },
+  ) =>
+    request<{ message: string }>(`/api/classification-rules/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  deleteClassificationRule: (id: number) =>
+    request<{ message: string }>(`/api/classification-rules/${id}`, {
+      method: "DELETE",
+    }),
   categoryRules: (q: URLSearchParams) => request<CategoryRule[]>(`/api/category-rules?${q.toString()}`),
+  setTransactionCategory: (payload: { transactionId: number; categoryId: number }) =>
+    request<{ message: string }>("/api/transaction-categories", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   createCategoryRule: (payload: { matchText: string; categoryId: number; isActive: boolean }) =>
     request<{ message: string }>("/api/category-rules", {
       method: "POST",

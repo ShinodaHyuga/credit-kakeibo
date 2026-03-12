@@ -1,22 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
-import type { Category, CategoryRule, UncategorizedStore } from "@/types/models";
+import type { Category, ClassificationRule, UncategorizedStore } from "@/types/models";
 import type { RuleDraft, RuleSortKey, SortDirection } from "@/types/ui";
 
 type ShowNotice = (message: string, error?: boolean) => void;
 
 export function useRulesTab(categories: Category[], showNotice: ShowNotice, refreshAll: () => Promise<void>) {
-  const [rules, setRules] = useState<CategoryRule[]>([]);
+  const [rules, setRules] = useState<ClassificationRule[]>([]);
   const [uncategorizedStores, setUncategorizedStores] = useState<UncategorizedStore[]>([]);
   const [ruleDrafts, setRuleDrafts] = useState<Record<number, RuleDraft>>({});
   const [uncQuickCategory, setUncQuickCategory] = useState<Record<string, number>>({});
 
   const [ruleFilterText, setRuleFilterText] = useState("");
+  const [ruleFilterSourceType, setRuleFilterSourceType] = useState("");
   const [ruleFilterActive, setRuleFilterActive] = useState(false);
   const [ruleSort, setRuleSort] = useState<{ key: RuleSortKey; direction: SortDirection }>({ key: "id", direction: "asc" });
 
+  const [newSourceType, setNewSourceType] = useState("");
+  const [newProviderName, setNewProviderName] = useState("");
+  const [newDirection, setNewDirection] = useState("");
+  const [newTransactionType, setNewTransactionType] = useState("");
   const [newMatchText, setNewMatchText] = useState("");
   const [newCategoryId, setNewCategoryId] = useState<number>(0);
+  const [newPriority, setNewPriority] = useState(100);
   const [newActive, setNewActive] = useState(true);
   const [uncStore, setUncStore] = useState("");
 
@@ -29,21 +35,27 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
   const loadRules = useCallback(async (useActiveFilter = true) => {
     const q = new URLSearchParams();
     if (ruleFilterText.trim()) q.set("matchText", ruleFilterText.trim());
+    if (ruleFilterSourceType.trim()) q.set("sourceType", ruleFilterSourceType.trim());
     if (useActiveFilter && ruleFilterActive) q.set("active", "true");
 
-    const data = await api.categoryRules(q);
+    const data = await api.classificationRules(q);
     setRules(data);
 
     const drafts: Record<number, RuleDraft> = {};
     for (const row of data) {
       drafts[row.id] = {
+        sourceType: row.sourceType,
+        providerName: row.providerName,
+        direction: row.direction,
+        transactionType: row.transactionType,
         matchText: row.matchText,
         categoryId: row.categoryId,
+        priority: row.priority,
         isActive: row.isActive,
       };
     }
     setRuleDrafts(drafts);
-  }, [ruleFilterText, ruleFilterActive]);
+  }, [ruleFilterText, ruleFilterSourceType, ruleFilterActive]);
 
   const loadUncategorizedStores = useCallback(async () => {
     const q = new URLSearchParams();
@@ -75,6 +87,9 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
         case "matchText":
           result = a.matchText.localeCompare(b.matchText, "ja");
           break;
+        case "sourceType":
+          result = `${a.sourceType}/${a.providerName}`.localeCompare(`${b.sourceType}/${b.providerName}`, "ja");
+          break;
         case "category":
           result = a.categoryName.localeCompare(b.categoryName, "ja");
           break;
@@ -99,6 +114,7 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
 
   const onClearRules = useCallback(() => {
     setRuleFilterText("");
+    setRuleFilterSourceType("");
     setRuleFilterActive(false);
     void loadRules(true).catch((e) => showNotice((e as Error).message, true));
   }, [loadRules, showNotice]);
@@ -107,7 +123,7 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
     const draft = ruleDrafts[id];
     if (!draft) return;
     void api
-      .updateCategoryRule(id, draft)
+      .updateClassificationRule(id, draft)
       .then(() => refreshAll())
       .then(() => loadRules(false))
       .then(() => showNotice(`ルール更新: #${id}`))
@@ -116,7 +132,7 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
 
   const onDeleteRule = useCallback((id: number) => {
     void api
-      .deleteCategoryRule(id)
+      .deleteClassificationRule(id)
       .then(() => refreshAll())
       .then(() => showNotice(`ルール削除: #${id}`))
       .catch((e) => showNotice((e as Error).message, true));
@@ -124,14 +140,28 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
 
   const onCreateRule = useCallback(() => {
     void api
-      .createCategoryRule({ matchText: newMatchText, categoryId: newCategoryId, isActive: newActive })
+      .createClassificationRule({
+        sourceType: newSourceType,
+        providerName: newProviderName,
+        direction: newDirection,
+        transactionType: newTransactionType,
+        matchText: newMatchText,
+        categoryId: newCategoryId,
+        priority: newPriority,
+        isActive: newActive,
+      })
       .then(() => refreshAll())
       .then(() => {
+        setNewSourceType("");
+        setNewProviderName("");
+        setNewDirection("");
+        setNewTransactionType("");
         setNewMatchText("");
+        setNewPriority(100);
         showNotice("ルールを追加しました");
       })
       .catch((e) => showNotice((e as Error).message, true));
-  }, [newMatchText, newCategoryId, newActive, refreshAll, showNotice]);
+  }, [newSourceType, newProviderName, newDirection, newTransactionType, newMatchText, newCategoryId, newPriority, newActive, refreshAll, showNotice]);
 
   const onSearchUncategorized = useCallback(() => {
     void loadUncategorizedStores().catch((e) => showNotice((e as Error).message, true));
@@ -144,9 +174,14 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
 
   const onCreateRuleFromUncategorized = useCallback((storeName: string) => {
     void api
-      .createCategoryRule({
+      .createClassificationRule({
+        sourceType: "",
+        providerName: "",
+        direction: "",
+        transactionType: "",
         matchText: storeName,
         categoryId: uncQuickCategory[storeName] ?? categories[0]?.id ?? 0,
+        priority: 100,
         isActive: true,
       })
       .then(() => refreshAll())
@@ -161,23 +196,35 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
     uncategorizedStores,
     uncQuickCategory,
     ruleFilterText,
+    ruleFilterSourceType,
     ruleFilterActive,
+    newSourceType,
+    newProviderName,
+    newDirection,
+    newTransactionType,
     newMatchText,
     newCategoryId,
+    newPriority,
     newActive,
     uncStore,
     loadRulesTab,
     ruleSortMark,
     onToggleRuleSort,
     onChangeRuleFilterText: setRuleFilterText,
+    onChangeRuleFilterSourceType: setRuleFilterSourceType,
     onChangeRuleFilterActive: setRuleFilterActive,
     onSearchRules,
     onClearRules,
     onChangeRuleDraft: (id: number, patch: Partial<RuleDraft>) => setRuleDrafts((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } })),
     onSaveRule,
     onDeleteRule,
+    onChangeNewSourceType: setNewSourceType,
+    onChangeNewProviderName: setNewProviderName,
+    onChangeNewDirection: setNewDirection,
+    onChangeNewTransactionType: setNewTransactionType,
     onChangeNewMatchText: setNewMatchText,
     onChangeNewCategoryId: setNewCategoryId,
+    onChangeNewPriority: setNewPriority,
     onChangeNewActive: setNewActive,
     onCreateRule,
     onChangeUncStore: setUncStore,
