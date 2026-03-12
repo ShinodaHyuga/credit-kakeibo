@@ -31,6 +31,43 @@ func (s *Service) Categories(ctx context.Context) ([]domain.Category, error) {
 	return s.repo.Categories(ctx)
 }
 
+func (s *Service) CreateCategory(ctx context.Context, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("name is required")
+	}
+	return s.repo.CreateCategory(ctx, name)
+}
+
+func (s *Service) UpdateCategory(ctx context.Context, id int64, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("name is required")
+	}
+	err := s.repo.UpdateCategory(ctx, id, name)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("category not found")
+		}
+		return err
+	}
+	return nil
+}
+
+func (s *Service) DeleteCategory(ctx context.Context, id int64) error {
+	err := s.repo.DeleteCategory(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("category not found")
+		}
+		if strings.Contains(strings.ToLower(err.Error()), "foreign key") {
+			return fmt.Errorf("category is in use")
+		}
+		return err
+	}
+	return nil
+}
+
 func splitMonths(raw string) []string {
 	if strings.TrimSpace(raw) == "" {
 		return nil

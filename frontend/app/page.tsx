@@ -151,6 +151,7 @@ export default function Page() {
             rules={rulesTab.rules}
             sortedRules={rulesTab.sortedRules}
             ruleDrafts={rulesTab.ruleDrafts}
+            categoryDrafts={rulesTab.categoryDrafts}
             categories={categories}
             uncategorizedStores={rulesTab.uncategorizedStores}
             uncQuickCategory={rulesTab.uncQuickCategory}
@@ -161,6 +162,7 @@ export default function Page() {
             newProviderName={rulesTab.newProviderName}
             newDirection={rulesTab.newDirection}
             newTransactionType={rulesTab.newTransactionType}
+            newCategoryName={rulesTab.newCategoryName}
             newMatchText={rulesTab.newMatchText}
             newCategoryId={rulesTab.newCategoryId}
             newPriority={rulesTab.newPriority}
@@ -180,11 +182,16 @@ export default function Page() {
             onChangeNewProviderName={rulesTab.onChangeNewProviderName}
             onChangeNewDirection={rulesTab.onChangeNewDirection}
             onChangeNewTransactionType={rulesTab.onChangeNewTransactionType}
+            onChangeNewCategoryName={rulesTab.onChangeNewCategoryName}
             onChangeNewMatchText={rulesTab.onChangeNewMatchText}
             onChangeNewCategoryId={rulesTab.onChangeNewCategoryId}
             onChangeNewPriority={rulesTab.onChangeNewPriority}
             onChangeNewActive={rulesTab.onChangeNewActive}
             onCreateRule={rulesTab.onCreateRule}
+            onCreateCategory={rulesTab.onCreateCategory}
+            onChangeCategoryDraft={rulesTab.onChangeCategoryDraft}
+            onSaveCategory={rulesTab.onSaveCategory}
+            onDeleteCategory={rulesTab.onDeleteCategory}
             onChangeUncStore={rulesTab.onChangeUncStore}
             onSearchUncategorized={rulesTab.onSearchUncategorized}
             onClearUncategorized={rulesTab.onClearUncategorized}

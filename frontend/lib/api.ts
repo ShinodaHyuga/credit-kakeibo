@@ -28,6 +28,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   categories: () => request<Category[]>("/api/categories"),
+  createCategory: (payload: { name: string }) =>
+    request<{ message: string }>("/api/categories", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateCategory: (id: number, payload: { name: string }) =>
+    request<{ message: string }>(`/api/categories/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  deleteCategory: (id: number) =>
+    request<{ message: string }>(`/api/categories/${id}`, {
+      method: "DELETE",
+    }),
   transactions: (q: URLSearchParams) => request<Transaction[]>(`/api/transactions?${q.toString()}`),
   summaryMonthly: (q: URLSearchParams) => request<MonthlySummary[]>(`/api/summary/monthly?${q.toString()}`),
   classificationRules: (q: URLSearchParams) => request<ClassificationRule[]>(`/api/classification-rules?${q.toString()}`),

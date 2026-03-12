@@ -1,10 +1,11 @@
 import type { Category, ClassificationRule, UncategorizedStore } from "@/types/models";
-import type { RuleDraft, RuleSortKey } from "@/types/ui";
+import type { CategoryDraft, RuleDraft, RuleSortKey } from "@/types/ui";
 
 type Props = {
   rules: ClassificationRule[];
   sortedRules: ClassificationRule[];
   ruleDrafts: Record<number, RuleDraft>;
+  categoryDrafts: Record<number, CategoryDraft>;
   categories: Category[];
   uncategorizedStores: UncategorizedStore[];
   uncQuickCategory: Record<string, number>;
@@ -15,6 +16,7 @@ type Props = {
   newProviderName: string;
   newDirection: string;
   newTransactionType: string;
+  newCategoryName: string;
   newMatchText: string;
   newCategoryId: number;
   newPriority: number;
@@ -34,11 +36,16 @@ type Props = {
   onChangeNewProviderName: (value: string) => void;
   onChangeNewDirection: (value: string) => void;
   onChangeNewTransactionType: (value: string) => void;
+  onChangeNewCategoryName: (value: string) => void;
   onChangeNewMatchText: (value: string) => void;
   onChangeNewCategoryId: (value: number) => void;
   onChangeNewPriority: (value: number) => void;
   onChangeNewActive: (value: boolean) => void;
   onCreateRule: () => void;
+  onCreateCategory: () => void;
+  onChangeCategoryDraft: (id: number, patch: Partial<CategoryDraft>) => void;
+  onSaveCategory: (id: number) => void;
+  onDeleteCategory: (id: number) => void;
   onChangeUncStore: (value: string) => void;
   onSearchUncategorized: () => void;
   onClearUncategorized: () => void;
@@ -141,6 +148,46 @@ export function RulesTab(props: Props) {
                   <td>
                     <button onClick={() => props.onSaveRule(rule.id)}>保存</button>
                     <button className="danger-button" onClick={() => props.onDeleteRule(rule.id)}>
+                      削除
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="section-head">
+        <h3>カテゴリ追加</h3>
+      </div>
+      <div className="controls">
+        <input value={props.newCategoryName} onChange={(e) => props.onChangeNewCategoryName(e.target.value)} placeholder="カテゴリ名" />
+        <button onClick={props.onCreateCategory}>カテゴリ追加</button>
+      </div>
+
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>カテゴリ名</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {props.categories.map((category) => {
+              const draft = props.categoryDrafts[category.id];
+              if (!draft) return null;
+              return (
+                <tr key={category.id}>
+                  <td>{category.id}</td>
+                  <td>
+                    <input value={draft.name} onChange={(e) => props.onChangeCategoryDraft(category.id, { name: e.target.value })} />
+                  </td>
+                  <td>
+                    <button onClick={() => props.onSaveCategory(category.id)}>保存</button>
+                    <button className="danger-button" onClick={() => props.onDeleteCategory(category.id)}>
                       削除
                     </button>
                   </td>

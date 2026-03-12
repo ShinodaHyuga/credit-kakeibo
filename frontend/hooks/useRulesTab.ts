@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import type { Category, ClassificationRule, UncategorizedStore } from "@/types/models";
-import type { RuleDraft, RuleSortKey, SortDirection } from "@/types/ui";
+import type { CategoryDraft, RuleDraft, RuleSortKey, SortDirection } from "@/types/ui";
 
 type ShowNotice = (message: string, error?: boolean) => void;
 
@@ -9,6 +9,7 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
   const [rules, setRules] = useState<ClassificationRule[]>([]);
   const [uncategorizedStores, setUncategorizedStores] = useState<UncategorizedStore[]>([]);
   const [ruleDrafts, setRuleDrafts] = useState<Record<number, RuleDraft>>({});
+  const [categoryDrafts, setCategoryDrafts] = useState<Record<number, CategoryDraft>>({});
   const [uncQuickCategory, setUncQuickCategory] = useState<Record<string, number>>({});
 
   const [ruleFilterText, setRuleFilterText] = useState("");
@@ -20,6 +21,7 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
   const [newProviderName, setNewProviderName] = useState("");
   const [newDirection, setNewDirection] = useState("");
   const [newTransactionType, setNewTransactionType] = useState("");
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [newMatchText, setNewMatchText] = useState("");
   const [newCategoryId, setNewCategoryId] = useState<number>(0);
   const [newPriority, setNewPriority] = useState(100);
@@ -31,6 +33,16 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
       setNewCategoryId(categories[0].id);
     }
   }, [categories, newCategoryId]);
+
+  useEffect(() => {
+    setCategoryDrafts((prev) => {
+      const next: Record<number, CategoryDraft> = {};
+      for (const category of categories) {
+        next[category.id] = prev[category.id] ?? { name: category.name };
+      }
+      return next;
+    });
+  }, [categories]);
 
   const loadRules = useCallback(async (useActiveFilter = true) => {
     const q = new URLSearchParams();
@@ -189,10 +201,40 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
       .catch((e) => showNotice((e as Error).message, true));
   }, [uncQuickCategory, categories, refreshAll, showNotice]);
 
+  const onCreateCategory = useCallback(() => {
+    void api
+      .createCategory({ name: newCategoryName })
+      .then(() => refreshAll())
+      .then(() => {
+        setNewCategoryName("");
+        showNotice("カテゴリを追加しました");
+      })
+      .catch((e) => showNotice((e as Error).message, true));
+  }, [newCategoryName, refreshAll, showNotice]);
+
+  const onSaveCategory = useCallback((id: number) => {
+    const draft = categoryDrafts[id];
+    if (!draft) return;
+    void api
+      .updateCategory(id, draft)
+      .then(() => refreshAll())
+      .then(() => showNotice(`カテゴリ更新: #${id}`))
+      .catch((e) => showNotice((e as Error).message, true));
+  }, [categoryDrafts, refreshAll, showNotice]);
+
+  const onDeleteCategory = useCallback((id: number) => {
+    void api
+      .deleteCategory(id)
+      .then(() => refreshAll())
+      .then(() => showNotice(`カテゴリ削除: #${id}`))
+      .catch((e) => showNotice((e as Error).message, true));
+  }, [refreshAll, showNotice]);
+
   return {
     rules,
     sortedRules,
     ruleDrafts,
+    categoryDrafts,
     uncategorizedStores,
     uncQuickCategory,
     ruleFilterText,
@@ -202,6 +244,7 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
     newProviderName,
     newDirection,
     newTransactionType,
+    newCategoryName,
     newMatchText,
     newCategoryId,
     newPriority,
@@ -222,11 +265,17 @@ export function useRulesTab(categories: Category[], showNotice: ShowNotice, refr
     onChangeNewProviderName: setNewProviderName,
     onChangeNewDirection: setNewDirection,
     onChangeNewTransactionType: setNewTransactionType,
+    onChangeNewCategoryName: setNewCategoryName,
     onChangeNewMatchText: setNewMatchText,
     onChangeNewCategoryId: setNewCategoryId,
     onChangeNewPriority: setNewPriority,
     onChangeNewActive: setNewActive,
     onCreateRule,
+    onCreateCategory,
+    onChangeCategoryDraft: (id: number, patch: Partial<CategoryDraft>) =>
+      setCategoryDrafts((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } })),
+    onSaveCategory,
+    onDeleteCategory,
     onChangeUncStore: setUncStore,
     onSearchUncategorized,
     onClearUncategorized,

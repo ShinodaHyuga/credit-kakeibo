@@ -38,6 +38,45 @@ func (r *Repo) Categories(ctx context.Context) ([]domain.Category, error) {
 	return items, rows.Err()
 }
 
+func (r *Repo) CreateCategory(ctx context.Context, name string) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO categories(name, sort_order)
+		 VALUES(?, COALESCE((SELECT MAX(sort_order) + 1 FROM categories), 1))`,
+		name,
+	)
+	return err
+}
+
+func (r *Repo) UpdateCategory(ctx context.Context, id int64, name string) error {
+	res, err := r.db.ExecContext(ctx, `UPDATE categories SET name = ? WHERE id = ?`, name, id)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (r *Repo) DeleteCategory(ctx context.Context, id int64) error {
+	res, err := r.db.ExecContext(ctx, `DELETE FROM categories WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 func (r *Repo) CategoryExists(ctx context.Context, id int64) (bool, error) {
 	var exists int
 	err := r.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM categories WHERE id = ?)`, id).Scan(&exists)

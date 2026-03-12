@@ -15,6 +15,10 @@ export type RuleDraft = {
   isActive: boolean;
 };
 
+export type CategoryDraft = {
+  name: string;
+};
+
 export type FixedExpenseDraft = {
   name: string;
   yearMonth: string;
